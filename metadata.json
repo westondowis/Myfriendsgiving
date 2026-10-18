@@ -1,0 +1,6 @@
+{
+  "name": "Friendsgiving: The Feast Ledger",
+  "description": "Zero-login, mobile-friendly Friendsgiving Potluck coordination single-page web application with live sync and locked dish claims.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
