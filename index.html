@@ -1,165 +1,1025 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Friendsgiving: The Feast Ledger</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-      body { font-family: 'Plus Jakarta Sans', sans-serif; }
-      .font-serif { font-family: 'Fraunces', serif; }
-    </style>
-  </head>
-  <body class="bg-[#FAF6F0] text-[#2C1E16] min-h-screen p-4 sm:p-8">
-    <div class="max-w-xl mx-auto">
-      <header class="text-center mb-6">
-        <h1 class="text-3xl sm:text-4xl font-serif font-bold text-[#8C3A27]">Friendsgiving Feast Ledger</h1>
-        <p class="text-sm text-stone-600 mt-2">Zero login required. Claim an essential item or add your own.</p>
-        <div id="counter" class="mt-4 inline-block bg-[#EAD8C0] px-4 py-1.5 rounded-full text-xs font-semibold text-[#5C2B1D]">
-          0 of 14 items claimed
-        </div>
-      </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Friendsgiving: The Feast Ledger</title>
+  <meta name="description" content="Zero-login, real-time Friendsgiving potluck coordination ledger." />
 
-      <div class="space-y-2.5" id="ledger-list"></div>
+  <!-- Google Fonts: Warm Serif (Fraunces) + Modern Clean Sans (Plus Jakarta Sans) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-      <div class="mt-8 pt-6 border-t border-stone-300">
-        <h2 class="text-lg font-bold font-serif mb-3 text-[#8C3A27]">Bringing Something Else?</h2>
-        <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3">
-          <input id="custom-dish" type="text" placeholder="Dish / Item Name (e.g., Sweet Potato Pie, Rolls)" class="w-full border border-stone-300 p-2.5 rounded-lg text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-[#8C3A27]" />
-          <input id="custom-name" type="text" placeholder="Your Name" class="w-full border border-stone-300 p-2.5 rounded-lg text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-[#8C3A27]" />
-          <div class="flex items-center gap-2">
-            <input id="custom-confirm" type="checkbox" class="h-4 w-4 rounded accent-[#8C3A27]" />
-            <label for="custom-confirm" class="text-xs text-stone-600">I confirm I am bringing this dish</label>
-          </div>
-          <button onclick="addCustomItem()" class="w-full bg-[#8C3A27] text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-[#702E1F] transition">Lock It In</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Claim Modal -->
-    <div id="claim-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div class="bg-white max-w-sm w-full p-5 rounded-2xl shadow-xl space-y-4">
-        <div>
-          <h3 class="font-serif font-bold text-lg text-[#8C3A27]" id="modal-dish-name">Claim Item</h3>
-          <p class="text-xs text-stone-500">Lock in your commitment to bring this dish.</p>
-        </div>
-        <input id="guest-name" type="text" placeholder="Your Name" class="w-full border border-stone-300 p-2.5 rounded-lg text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-[#8C3A27]" />
-        <div class="flex items-center gap-2">
-          <input id="confirm-box" type="checkbox" class="h-4 w-4 rounded accent-[#8C3A27]" />
-          <label for="confirm-box" class="text-xs text-stone-600">I confirm I am bringing this dish</label>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="closeModal()" class="w-1/2 py-2 rounded-lg border border-stone-300 text-stone-600 text-xs font-semibold">Cancel</button>
-          <button onclick="submitClaim()" class="w-1/2 bg-[#8C3A27] text-white py-2 rounded-lg text-xs font-semibold hover:bg-[#702E1F]">Lock It In</button>
-        </div>
-      </div>
-    </div>
-
-    <script>
-      const defaultItems = [
-        "Roast Turkey / Main Protein",
-        "Green Bean Casserole",
-        "Stuffing / Dressing",
-        "Mashed Potatoes and Gravy",
-        "Cranberry Sauce",
-        "Sweet Potato Casserole",
-        "Fresh Dinner Rolls & Butter",
-        "Macaroni & Cheese",
-        "Roasted Fall Vegetables",
-        "Pumpkin Pie & Whipped Cream",
-        "Apple Pie or Pecan Pie",
-        "Sparkling Apple Cider / Wine",
-        "Appetizer / Charcuterie Board",
-        "Ice & Extra Tableware"
-      ];
-
-      let selectedItemId = null;
-      let items = JSON.parse(localStorage.getItem("friendsgiving_ledger_v1")) || 
-        defaultItems.map((name, id) => ({ id, name, claimedBy: null, isCustom: false }));
-
-      function saveAndRender() {
-        localStorage.setItem("friendsgiving_ledger_v1", JSON.stringify(items));
-        render();
-      }
-
-      function openClaim(id) {
-        selectedItemId = id;
-        const item = items.find(i => i.id === id);
-        document.getElementById("modal-dish-name").innerText = `Claim: ${item.name}`;
-        document.getElementById("guest-name").value = "";
-        document.getElementById("confirm-box").checked = false;
-        document.getElementById("claim-modal").classList.remove("hidden");
-      }
-
-      function closeModal() {
-        selectedItemId = null;
-        document.getElementById("claim-modal").classList.add("hidden");
-      }
-
-      function submitClaim() {
-        const name = document.getElementById("guest-name").value.trim();
-        const confirmed = document.getElementById("confirm-box").checked;
-
-        if (!name) { alert("Please enter your name."); return; }
-        if (!confirmed) { alert("Please check the confirmation box."); return; }
-
-        const target = items.find(i => i.id === selectedItemId);
-        if (target) {
-          target.claimedBy = name;
-          closeModal();
-          saveAndRender();
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            canvas: '#FAF6F0',
+            walnut: {
+              DEFAULT: '#2C1E16',
+              soft: '#4A3B32',
+              light: '#6E5D53',
+            },
+            terracotta: {
+              DEFAULT: '#8C3A27',
+              hover: '#732E1E',
+              light: '#F8ECE8',
+            },
+            amberAutumn: {
+              DEFAULT: '#C25927',
+              light: '#F8ECE4',
+            },
+            sage: {
+              DEFAULT: '#526650',
+              light: '#EAF0E9',
+              dark: '#3D4D3B',
+            },
+            goldHarvest: {
+              DEFAULT: '#D4952B',
+              light: '#FEF3C7',
+              text: '#92400E',
+            },
+          },
+          fontFamily: {
+            serif: ['Fraunces', 'serif'],
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          boxShadow: {
+            warm: '0 4px 20px -2px rgba(44, 30, 22, 0.07), 0 2px 6px -1px rgba(44, 30, 22, 0.04)',
+            warmLg: '0 12px 32px -4px rgba(44, 30, 22, 0.12), 0 4px 12px -2px rgba(44, 30, 22, 0.06)',
+          }
         }
       }
+    }
+  </script>
 
-      function addCustomItem() {
-        const dish = document.getElementById("custom-dish").value.trim();
-        const name = document.getElementById("custom-name").value.trim();
-        const confirmed = document.getElementById("custom-confirm").checked;
+  <!-- Canvas Confetti for Festive Celebrations -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
-        if (!dish || !name) { alert("Please provide both the dish name and your name."); return; }
-        if (!confirmed) { alert("Please check the confirmation box."); return; }
+  <!-- Firebase Realtime Database SDK (Compat CDN for zero-dependency operation) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-        items.push({ id: Date.now(), name: dish, claimedBy: name, isCustom: true });
-        document.getElementById("custom-dish").value = "";
-        document.getElementById("custom-name").value = "";
-        document.getElementById("custom-confirm").checked = false;
-        saveAndRender();
+  <style>
+    body {
+      background-color: #FAF6F0;
+      color: #2C1E16;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .dish-card-claimed {
+      background: linear-gradient(145deg, #ffffff, #F8F5F0);
+      border-color: #E2D7C8;
+    }
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans selection:bg-terracotta-light selection:text-terracotta antialiased">
+
+  <!-- ========================================================================= -->
+  <!-- TOP SYNC HEADER -->
+  <!-- ========================================================================= -->
+  <header class="border-b border-[#EBDDCF] bg-[#FAF6F0]/90 backdrop-blur-md sticky top-0 z-30 transition-all no-print">
+    <div class="max-w-2xl mx-auto px-4 py-2.5 flex items-center justify-between text-xs sm:text-sm">
+      <div class="flex items-center gap-2">
+        <span id="syncIndicator" class="relative flex h-2.5 w-2.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+        </span>
+        <span id="syncStatusText" class="text-walnut-soft font-medium text-xs">Live Multi-Tab Sync</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="copyShareBtn" class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#DFD4C4] text-walnut-soft hover:text-terracotta hover:border-terracotta transition text-xs font-semibold shadow-xs">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+          <span>Share Link</span>
+        </button>
+
+        <button id="openConfigBtn" title="Sync & Cloud Settings" class="p-1.5 rounded-full text-walnut-light hover:text-walnut hover:bg-[#F2EAE0] transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN APP CONTAINER -->
+  <!-- ========================================================================= -->
+  <main class="flex-1 max-w-2xl w-full mx-auto px-4 py-6 sm:py-8 no-print">
+
+    <!-- Hero Title -->
+    <div class="text-center mb-6">
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-terracotta-light text-terracotta text-xs font-bold tracking-wide uppercase mb-2.5">
+        <span>🍁</span>
+        <span>Friendsgiving 2026 · Zero Login</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-serif font-bold text-terracotta tracking-tight leading-tight">
+        Friendsgiving Feast Ledger
+      </h1>
+      <p class="mt-2 text-walnut-soft text-xs sm:text-sm max-w-md mx-auto">
+        Zero login required. Claim an essential dish or bring your own signature dish so we don't have eight bowls of potatoes and no pie.
+      </p>
+
+      <!-- Live Summary Counter Pill -->
+      <div class="mt-4 flex flex-col items-center">
+        <div id="counterBadge" class="inline-flex items-center gap-2 bg-[#EAD8C0] px-4 py-1.5 rounded-full text-xs font-bold text-[#5C2B1D] border border-[#DECBAD] shadow-xs">
+          <span id="counterText">0 of 14 core items covered</span>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="w-full max-w-sm mt-3 bg-[#EFE7DA] rounded-full h-2.5 overflow-hidden border border-[#E2D5C3]">
+          <div id="feastProgressBar" class="h-full bg-gradient-to-r from-terracotta to-amberAutumn transition-all duration-500 rounded-full" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Filter Tabs & Search -->
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 mb-5">
+      <div class="flex items-center gap-1 bg-[#EFE8DC] p-1 rounded-xl border border-[#E2D7C5] overflow-x-auto">
+        <button onclick="setFilter('all')" id="tab-all" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-walnut text-white shadow-xs transition">
+          All (<span id="count-all">14</span>)
+        </button>
+        <button onclick="setFilter('needed')" id="tab-needed" class="px-3 py-1.5 rounded-lg text-xs font-medium text-walnut-soft hover:bg-white/60 transition">
+          Still Needed (<span id="count-needed">14</span>)
+        </button>
+        <button onclick="setFilter('claimed')" id="tab-claimed" class="px-3 py-1.5 rounded-lg text-xs font-medium text-walnut-soft hover:bg-white/60 transition">
+          Locked In (<span id="count-claimed">0</span>)
+        </button>
+      </div>
+
+      <input
+        type="text"
+        id="searchDishInput"
+        placeholder="Search dish or guest..."
+        oninput="handleSearch(this.value)"
+        class="px-3 py-1.5 text-xs bg-white border border-[#D9CEBF] rounded-xl focus:outline-none focus:ring-2 focus:ring-terracotta text-walnut placeholder-[#A69788]"
+      />
+    </div>
+
+    <!-- Essential Feast Dishes List -->
+    <section class="space-y-2.5" id="ledger-list">
+      <!-- Injected by JavaScript -->
+    </section>
+
+    <!-- Additional Goodies / Custom Wildcards Section -->
+    <section class="mt-8 pt-6 border-t border-[#E8DEC8]">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="text-lg font-serif font-bold text-terracotta">Bringing Something Else?</h2>
+          <p class="text-xs text-walnut-light">Have a signature family recipe, special beverage, or appetizer?</p>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-[#E7DFD5] shadow-warm space-y-3">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-walnut-soft mb-1">
+            Dish / Item Name <span class="text-terracotta">*</span>
+          </label>
+          <input
+            id="custom-dish"
+            type="text"
+            placeholder="e.g., Jalapeño Cornbread, Mulled Cider, Charcuterie"
+            class="w-full border border-[#D9CEBF] p-2.5 rounded-xl text-sm bg-[#FAF8F5] text-walnut focus:outline-none focus:ring-2 focus:ring-terracotta"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-walnut-soft mb-1">
+            Your Name <span class="text-terracotta">*</span>
+          </label>
+          <input
+            id="custom-name"
+            type="text"
+            placeholder="e.g., Maya & Liam"
+            class="w-full border border-[#D9CEBF] p-2.5 rounded-xl text-sm bg-[#FAF8F5] text-walnut focus:outline-none focus:ring-2 focus:ring-terracotta"
+          />
+        </div>
+
+        <div class="flex items-start gap-2.5 pt-1">
+          <input
+            id="custom-confirm"
+            type="checkbox"
+            class="mt-0.5 h-4 w-4 rounded accent-terracotta border-stone-300"
+          />
+          <label for="custom-confirm" class="text-xs text-walnut-soft select-none cursor-pointer">
+            I confirm I am bringing this dish and will have it hot & ready!
+          </label>
+        </div>
+
+        <button
+          onclick="addCustomItem()"
+          class="w-full bg-terracotta text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-terracotta-hover transition shadow-xs flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer"
+        >
+          <span>Add to Feast 🥧</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Additional Goodies List -->
+    <div id="custom-ledger-list" class="mt-4 space-y-2.5">
+      <!-- Injected by JavaScript -->
+    </div>
+
+    <!-- Footer Controls -->
+    <footer class="mt-12 text-center text-xs text-walnut-light border-t border-[#E8DEC8] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div>Friendsgiving Feast Ledger &bull; Zero login required</div>
+      <div class="flex items-center gap-4 text-walnut-soft">
+        <button onclick="window.print()" class="hover:text-terracotta transition underline underline-offset-4 cursor-pointer">
+          Print Fridge Checklist
+        </button>
+        <span aria-hidden="true">&bull;</span>
+        <button onclick="openConfigModal()" class="hover:text-terracotta transition underline underline-offset-4 cursor-pointer">
+          Sync Settings
+        </button>
+      </div>
+    </footer>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: 2-STEP CLAIM MODAL -->
+  <!-- ========================================================================= -->
+  <div id="claim-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 transition-opacity">
+    <div class="bg-white max-w-sm w-full p-6 rounded-2xl shadow-warmLg border border-[#E7DFD5] space-y-4">
+      <div>
+        <span class="text-[11px] uppercase font-bold tracking-wider text-terracotta block">Step into the kitchen</span>
+        <h3 class="font-serif font-bold text-lg text-walnut leading-snug mt-0.5" id="modal-dish-name">Claim Item</h3>
+        <p class="text-xs text-walnut-light mt-0.5">Lock in your commitment so everyone knows it's covered.</p>
+      </div>
+
+      <div>
+        <label for="guest-name" class="block text-xs font-bold uppercase tracking-wider text-walnut-soft mb-1">
+          Your Name / Family <span class="text-terracotta">*</span>
+        </label>
+        <input
+          id="guest-name"
+          type="text"
+          placeholder="e.g., Alex & Jordan"
+          class="w-full border border-[#D9CEBF] p-2.5 rounded-xl text-sm bg-[#FAF8F5] text-walnut focus:outline-none focus:ring-2 focus:ring-terracotta font-medium"
+        />
+      </div>
+
+      <div class="p-3 bg-terracotta-light rounded-xl border border-[#F0D5C3]">
+        <label class="flex items-start gap-2.5 cursor-pointer select-none">
+          <input id="confirm-box" type="checkbox" class="mt-0.5 h-4 w-4 rounded accent-terracotta" />
+          <span class="text-xs text-walnut leading-relaxed font-medium">
+            I solemnly swear I am bringing this dish and will feed the feast!
+          </span>
+        </label>
+      </div>
+
+      <div class="flex gap-2.5 pt-1">
+        <button
+          onclick="closeClaimModal()"
+          class="w-1/3 py-2.5 rounded-xl border border-[#D9CEBF] text-walnut-soft text-xs font-semibold hover:bg-[#F3EDE2] transition"
+        >
+          Cancel
+        </button>
+        <button
+          onclick="submitClaim()"
+          class="w-2/3 bg-terracotta text-white py-2.5 rounded-xl text-xs font-semibold hover:bg-terracotta-hover transition shadow-xs flex items-center justify-center gap-1 active:scale-[0.98] cursor-pointer"
+        >
+          <span>Lock It In 🦃</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: SYNC & FIREBASE CLOUD CONFIG -->
+  <!-- ========================================================================= -->
+  <div id="config-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+    <div class="bg-white max-w-md w-full p-6 rounded-2xl shadow-warmLg border border-[#E7DFD5] space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-start justify-between">
+        <div>
+          <span class="text-[11px] uppercase font-bold tracking-wider text-walnut-light block">Multi-Phone Persistence</span>
+          <h3 class="font-serif font-bold text-lg text-walnut">Cloud Sync Setup</h3>
+        </div>
+        <button onclick="closeConfigModal()" class="text-walnut-light hover:text-walnut p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="text-xs text-walnut-soft space-y-2 leading-relaxed bg-[#F7F3EC] p-3 rounded-xl border border-[#E8DEC8]">
+        <p><strong>✓ Multi-Tab Sync</strong> is already active on this device.</p>
+        <p>To sync across <strong>everyone's phones</strong> in real-time, paste your Firebase Realtime Database URL below (with open read/write rules):</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-walnut-soft mb-1">
+          Firebase Realtime Database URL
+        </label>
+        <input
+          id="config-db-url"
+          type="text"
+          placeholder="https://your-project-default-rtdb.firebaseio.com"
+          class="w-full border border-[#D9CEBF] p-2.5 rounded-xl text-xs font-mono bg-[#FAF8F5] text-walnut focus:outline-none focus:ring-2 focus:ring-terracotta"
+        />
+        <p class="text-[11px] text-walnut-light mt-1">
+          Tip: You can also share the URL with <code>?db=YOUR_URL</code> so guests connect automatically!
+        </p>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button
+          onclick="saveConfig()"
+          class="w-full bg-terracotta text-white py-2.5 rounded-xl text-xs font-semibold hover:bg-terracotta-hover transition shadow-xs"
+        >
+          Save & Connect
+        </button>
+      </div>
+
+      <div class="pt-3 border-t border-[#E8DEC8] flex items-center justify-between">
+        <button onclick="resetLedger()" class="text-xs text-red-600 hover:text-red-700 underline font-semibold">
+          Reset All Items to Defaults
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- TOAST NOTIFICATION -->
+  <!-- ========================================================================= -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-walnut text-white shadow-warmLg text-xs font-medium translate-y-16 opacity-0 transition-all duration-300 pointer-events-none no-print">
+    <span id="toastIcon">✨</span>
+    <span id="toastMsg">Notification message</span>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PRINT-ONLY FRIDGE VIEW -->
+  <!-- ========================================================================= -->
+  <div class="hidden print-only p-8 max-w-2xl mx-auto">
+    <div class="border-b-2 border-black pb-3 mb-4 text-center">
+      <h1 class="text-2xl font-bold font-serif uppercase">Friendsgiving 2026: The Feast Ledger</h1>
+      <p class="text-xs text-gray-600 mt-1">Fridge Master Checklist &bull; Generated Live</p>
+    </div>
+    <div id="print-content" class="text-xs space-y-4"></div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT & REAL-TIME PERSISTENCE ENGINE -->
+  <!-- ========================================================================= -->
+  <script>
+    /**
+     * =========================================================================
+     * 🍁 FIREBASE REALTIME DATABASE CONFIGURATION (Plug & Play)
+     * =========================================================================
+     * To connect your own free Firebase Realtime Database for all guests:
+     * 1. Go to https://console.firebase.google.com/ and create a project.
+     * 2. Under 'Build', select 'Realtime Database' -> 'Create Database'.
+     * 3. Set Rules: { "rules": { ".read": true, ".write": true } }
+     * 4. Paste your database URL below, OR enter it in the app's ⚙️ Settings dialog!
+     */
+    const EMBEDDED_FIREBASE_CONFIG = {
+      databaseURL: "", // e.g., "https://YOUR-PROJECT-NAME-default-rtdb.firebaseio.com"
+      projectId: "",
+      apiKey: ""
+    };
+
+    /**
+     * 14 Curated Base Thanksgiving Items List
+     */
+    const DEFAULT_ITEMS = [
+      { id: 1, name: "Roast Turkey / Main Protein", emoji: "🦃" },
+      { id: 2, name: "Green Bean Casserole", emoji: "🥬" },
+      { id: 3, name: "Traditional Stuffing / Dressing", emoji: "🍞" },
+      { id: 4, name: "Mashed Potatoes & Gravy", emoji: "🥔" },
+      { id: 5, name: "Cranberry Sauce", emoji: "🫐" },
+      { id: 6, name: "Sweet Potato Casserole", emoji: "🍠" },
+      { id: 7, name: "Fresh Dinner Rolls & Butter", emoji: "🥖" },
+      { id: 8, name: "Macaroni & Cheese", emoji: "🧀" },
+      { id: 9, name: "Roasted Fall Vegetables (Brussels sprouts, carrots)", emoji: "🥕" },
+      { id: 10, name: "Pumpkin Pie & Whipped Cream", emoji: "🎃" },
+      { id: 11, name: "Apple Pie or Pecan Pie", emoji: "🥧" },
+      { id: 12, name: "Beverages / Wine / Sparkling Apple Cider", emoji: "🍷" },
+      { id: 13, name: "Appetizer / Charcuterie Board", emoji: "🍇" },
+      { id: 14, name: "Ice & Disposable Tableware", emoji: "🧊" }
+    ];
+
+    const STORAGE_KEY = "friendsgiving_ledger_v2";
+    const CONFIG_STORAGE_KEY = "friendsgiving_db_config_v2";
+
+    // Application State
+    let items = [];
+    let selectedItemId = null;
+    let currentFilter = 'all';
+    let searchQuery = '';
+    let firebaseDb = null;
+    let broadcastChannel = null;
+
+    // Initialize application
+    function initApp() {
+      // 1. Setup multi-tab BroadcastChannel for 0ms same-device sync
+      if ('BroadcastChannel' in window) {
+        broadcastChannel = new BroadcastChannel('friendsgiving_feast_live_channel');
+        broadcastChannel.onmessage = (event) => {
+          if (event.data && event.data.type === 'ITEMS_UPDATED' && Array.isArray(event.data.payload)) {
+            items = event.data.payload;
+            render();
+          }
+        };
       }
 
-      function render() {
-        const list = document.getElementById("ledger-list");
-        list.innerHTML = "";
-        let claimedCount = 0;
+      // 2. Fallback window storage event
+      window.addEventListener('storage', (e) => {
+        if (e.key === STORAGE_KEY && e.newValue) {
+          try {
+            items = JSON.parse(e.newValue);
+            render();
+          } catch (err) {}
+        }
+      });
 
-        items.forEach(item => {
-          if (item.claimedBy) claimedCount++;
-          const card = document.createElement("div");
-          card.className = "bg-white p-3.5 rounded-xl border border-stone-200 shadow-sm flex items-center justify-between";
+      // 3. Load initial local items
+      loadInitialItems();
 
-          card.innerHTML = `
-            <div>
-              <div class="font-semibold text-sm text-stone-900">${item.name}</div>
-              <div class="text-xs ${item.claimedBy ? 'text-amber-800 font-medium' : 'text-stone-400'} mt-0.5">
-                ${item.claimedBy ? `Brought by ${item.claimedBy}` : "Available"}
-              </div>
-            </div>
-            <div>
-              ${item.claimedBy 
-                ? `<span class="bg-amber-100 text-amber-900 text-xs px-2.5 py-1 rounded-full font-medium">Locked In</span>` 
-                : `<button onclick="openClaim(${item.id})" class="bg-[#8C3A27] text-white text-xs px-3 py-1.5 rounded-lg font-semibold hover:bg-[#702E1F] transition">Claim</button>`
-              }
-            </div>
-          `;
-          list.appendChild(card);
+      // 4. Initialize Cloud Real-Time Persistence (Firebase RTDB or query param ?db=...)
+      initCloudSync();
+
+      // 5. Initial render
+      render();
+
+      // 6. Setup Close handlers
+      setupModalClosers();
+    }
+
+    function loadInitialItems() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          items = JSON.parse(stored);
+        } catch (e) {
+          items = buildDefaultItems();
+        }
+      } else {
+        items = buildDefaultItems();
+        persistItemsLocally(false);
+      }
+    }
+
+    function buildDefaultItems() {
+      return DEFAULT_ITEMS.map(item => ({
+        id: item.id,
+        name: item.name,
+        emoji: item.emoji,
+        claimedBy: null,
+        claimedAt: null,
+        isCustom: false
+      }));
+    }
+
+    function persistItemsLocally(broadcast = true) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      if (broadcast && broadcastChannel) {
+        broadcastChannel.postMessage({ type: 'ITEMS_UPDATED', payload: items });
+      }
+    }
+
+    // =========================================================================
+    // CLOUD PERSISTENCE (Firebase Realtime Database)
+    // =========================================================================
+    function getDbUrl() {
+      // 1. Query parameter has highest priority: ?db=https://...
+      const params = new URLSearchParams(window.location.search);
+      const urlParam = params.get('db');
+      if (urlParam) return urlParam.trim();
+
+      // 2. Saved in localStorage
+      const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
+      if (saved) return saved.trim();
+
+      // 3. Embedded config in script
+      if (EMBEDDED_FIREBASE_CONFIG.databaseURL) {
+        return EMBEDDED_FIREBASE_CONFIG.databaseURL.trim();
+      }
+
+      return "";
+    }
+
+    function initCloudSync() {
+      const dbUrl = getDbUrl();
+      const configInput = document.getElementById("config-db-url");
+      if (configInput) configInput.value = dbUrl;
+
+      if (!dbUrl) {
+        updateSyncUI(false, "Local & Multi-Tab Live");
+        return;
+      }
+
+      connectToFirebase(dbUrl);
+    }
+
+    function connectToFirebase(dbUrl) {
+      try {
+        let cleanUrl = dbUrl;
+        if (!cleanUrl.startsWith('http')) {
+          cleanUrl = 'https://' + cleanUrl;
+        }
+
+        // Initialize Firebase compat app if needed
+        if (!firebase.apps.length) {
+          firebase.initializeApp({
+            databaseURL: cleanUrl
+          });
+        }
+        firebaseDb = firebase.database();
+
+        // Listen for live updates across all phones & devices!
+        firebaseDb.ref('feast_ledger/items').on('value', (snapshot) => {
+          const cloudData = snapshot.val();
+          if (cloudData && Array.isArray(cloudData) && cloudData.length > 0) {
+            items = cloudData;
+            persistItemsLocally(true);
+            render();
+            updateSyncUI(true, "Firebase Cloud Live (All Devices)");
+          } else {
+            // First time project seed
+            pushToCloud(items);
+            updateSyncUI(true, "Connected & Seeded to Cloud");
+          }
+        }, (error) => {
+          console.warn("Firebase permission or network notice:", error);
+          updateSyncUI(false, "Cloud Offline / Rules Check Needed");
         });
 
-        document.getElementById("counter").innerText = `${claimedCount} of ${items.length} items claimed`;
+      } catch (err) {
+        console.warn("Firebase init note:", err);
+        updateSyncUI(false, "Config Format Notice (Using Local)");
+      }
+    }
+
+    function pushToCloud(updatedItems) {
+      if (!firebaseDb) return;
+      try {
+        firebaseDb.ref('feast_ledger/items').set(updatedItems)
+          .catch(e => console.warn("Cloud write note:", e));
+      } catch (e) {
+        console.warn("Cloud write error:", e);
+      }
+    }
+
+    function updateSyncUI(isCloud, text) {
+      const indicator = document.getElementById("syncIndicator");
+      const statusText = document.getElementById("syncStatusText");
+      if (!indicator || !statusText) return;
+
+      statusText.innerText = text;
+      const dot = indicator.querySelector("span.relative");
+      const ping = indicator.querySelector("span.animate-ping");
+
+      if (isCloud) {
+        dot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500";
+        ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
+      } else {
+        dot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500";
+        ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+      }
+    }
+
+    // =========================================================================
+    // CLAIMING WORKFLOW (2-Step Modal)
+    // =========================================================================
+    function openClaim(id) {
+      selectedItemId = id;
+      const item = items.find(i => i.id === id);
+      if (!item || item.claimedBy) return;
+
+      document.getElementById("modal-dish-name").innerText = `${item.emoji || '🍽️'} ${item.name}`;
+      document.getElementById("guest-name").value = "";
+      document.getElementById("confirm-box").checked = false;
+      document.getElementById("claim-modal").classList.remove("hidden");
+
+      setTimeout(() => {
+        document.getElementById("guest-name").focus();
+      }, 100);
+    }
+
+    function closeClaimModal() {
+      selectedItemId = null;
+      document.getElementById("claim-modal").classList.add("hidden");
+    }
+
+    function submitClaim() {
+      const name = document.getElementById("guest-name").value.trim();
+      const confirmed = document.getElementById("confirm-box").checked;
+
+      if (!name) {
+        showToast("Please enter your name!", "⚠️");
+        return;
+      }
+      if (!confirmed) {
+        showToast("Please check the confirmation box!", "⚠️");
+        return;
       }
 
+      const target = items.find(i => i.id === selectedItemId);
+      if (!target) return;
+
+      if (target.claimedBy) {
+        showToast("Someone just locked this dish in a moment ago!", "⚠️");
+        closeClaimModal();
+        render();
+        return;
+      }
+
+      target.claimedBy = name;
+      target.claimedAt = new Date().toISOString();
+
+      persistItemsLocally(true);
+      pushToCloud(items);
+      closeClaimModal();
       render();
-    </script>
-  </body>
+
+      // Autumn confetti celebration
+      fireConfetti();
+      showToast(`${name} locked in the ${target.name}!`, "🎉");
+    }
+
+    function requestUnclaim(id) {
+      const target = items.find(i => i.id === id);
+      if (!target) return;
+
+      if (confirm(`Do you want to release "${target.name}" claimed by ${target.claimedBy}? It will be open for anyone else to claim.`)) {
+        target.claimedBy = null;
+        target.claimedAt = null;
+        persistItemsLocally(true);
+        pushToCloud(items);
+        render();
+        showToast(`"${target.name}" is back on the open ledger!`, "🔄");
+      }
+    }
+
+    function removeCustom(id) {
+      const target = items.find(i => i.id === id);
+      if (!target) return;
+
+      if (confirm(`Remove "${target.name}" from the feast ledger?`)) {
+        items = items.filter(i => i.id !== id);
+        persistItemsLocally(true);
+        pushToCloud(items);
+        render();
+        showToast(`Removed "${target.name}"`, "🗑️");
+      }
+    }
+
+    // =========================================================================
+    // "BRING SOMETHING ELSE" CUSTOM DISH WORKFLOW
+    // =========================================================================
+    function addCustomItem() {
+      const dishInput = document.getElementById("custom-dish");
+      const nameInput = document.getElementById("custom-name");
+      const confirmInput = document.getElementById("custom-confirm");
+
+      const dish = dishInput.value.trim();
+      const name = nameInput.value.trim();
+      const confirmed = confirmInput.checked;
+
+      if (!dish || !name) {
+        showToast("Please provide both the dish name and your name.", "⚠️");
+        return;
+      }
+      if (!confirmed) {
+        showToast("Please check the confirmation box.", "⚠️");
+        return;
+      }
+
+      const newItem = {
+        id: Date.now(),
+        name: dish,
+        emoji: "🥧",
+        claimedBy: name,
+        claimedAt: new Date().toISOString(),
+        isCustom: true
+      };
+
+      items.push(newItem);
+      dishInput.value = "";
+      nameInput.value = "";
+      confirmInput.checked = false;
+
+      persistItemsLocally(true);
+      pushToCloud(items);
+      render();
+
+      fireConfetti();
+      showToast(`Added "${dish}" to the Feast Ledger!`, "✨");
+    }
+
+    // =========================================================================
+    // RENDERING LOGIC
+    // =========================================================================
+    function setFilter(filter) {
+      currentFilter = filter;
+      ['all', 'needed', 'claimed'].forEach(f => {
+        const btn = document.getElementById(`tab-${f}`);
+        if (btn) {
+          if (f === filter) {
+            btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-walnut text-white shadow-xs transition";
+          } else {
+            btn.className = "px-3 py-1.5 rounded-lg text-xs font-medium text-walnut-soft hover:bg-white/60 transition";
+          }
+        }
+      });
+      render();
+    }
+
+    function handleSearch(val) {
+      searchQuery = val.toLowerCase().trim();
+      render();
+    }
+
+    function render() {
+      const coreContainer = document.getElementById("ledger-list");
+      const customContainer = document.getElementById("custom-ledger-list");
+      if (!coreContainer) return;
+
+      coreContainer.innerHTML = "";
+      if (customContainer) customContainer.innerHTML = "";
+
+      const coreItems = items.filter(i => !i.isCustom);
+      const customItems = items.filter(i => i.isCustom);
+
+      let claimedCoreCount = 0;
+      coreItems.forEach(i => { if (i.claimedBy) claimedCoreCount++; });
+
+      const totalClaimed = items.filter(i => !!i.claimedBy).length;
+      const totalNeeded = items.filter(i => !i.claimedBy).length;
+
+      // Update counters
+      const counterText = document.getElementById("counterText");
+      if (counterText) {
+        counterText.innerText = `${claimedCoreCount} of ${coreItems.length} core items covered`;
+      }
+
+      const progressBar = document.getElementById("feastProgressBar");
+      if (progressBar) {
+        const pct = Math.round((claimedCoreCount / coreItems.length) * 100);
+        progressBar.style.width = `${pct}%`;
+      }
+
+      document.getElementById("count-all").innerText = items.length;
+      document.getElementById("count-needed").innerText = totalNeeded;
+      document.getElementById("count-claimed").innerText = totalClaimed;
+
+      // Render Core Items
+      coreItems.forEach(item => {
+        if (passesFilter(item)) {
+          coreContainer.appendChild(createItemCard(item));
+        }
+      });
+
+      // Render Custom Items if any
+      if (customContainer) {
+        customItems.forEach(item => {
+          if (passesFilter(item)) {
+            customContainer.appendChild(createItemCard(item));
+          }
+        });
+      }
+
+      // Update Fridge Print View
+      renderPrintView(coreItems, customItems);
+    }
+
+    function passesFilter(item) {
+      if (currentFilter === 'needed' && item.claimedBy) return false;
+      if (currentFilter === 'claimed' && !item.claimedBy) return false;
+
+      if (searchQuery) {
+        const nameMatch = item.name.toLowerCase().includes(searchQuery);
+        const guestMatch = item.claimedBy && item.claimedBy.toLowerCase().includes(searchQuery);
+        if (!nameMatch && !guestMatch) return false;
+      }
+      return true;
+    }
+
+    function createItemCard(item) {
+      const isClaimed = !!item.claimedBy;
+      const card = document.createElement("div");
+
+      if (isClaimed) {
+        card.className = "dish-card-claimed p-3.5 sm:p-4 rounded-xl border border-[#E2D7C8] shadow-xs flex items-center justify-between gap-3 transition";
+        card.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xl sm:text-2xl select-none shrink-0">${item.emoji || '🍽️'}</span>
+            <div class="min-w-0">
+              <div class="font-bold text-sm text-walnut-soft line-through opacity-85 truncate">${escapeHtml(item.name)}</div>
+              <div class="flex items-center gap-2 text-xs text-sage font-medium mt-0.5">
+                <span>Claimed by <strong>${escapeHtml(item.claimedBy)}</strong></span>
+                <span class="text-stone-300">&bull;</span>
+                <button onclick="requestUnclaim(${item.id})" class="text-stone-400 hover:text-red-700 underline text-[11px] transition">Swap?</button>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] text-[11px] px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+              <svg class="w-3 h-3 text-[#92400E]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+              <span>Locked</span>
+            </span>
+            ${item.isCustom ? `<button onclick="removeCustom(${item.id})" class="text-stone-400 hover:text-red-600 p-1 rounded transition" title="Delete custom dish"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : ''}
+          </div>
+        `;
+      } else {
+        card.className = "bg-white p-3.5 sm:p-4 rounded-xl border border-[#E7DFD5] shadow-xs hover:border-terracotta/40 flex items-center justify-between gap-3 transition group";
+        card.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xl sm:text-2xl select-none group-hover:scale-105 transition-transform shrink-0">${item.emoji || '🥘'}</span>
+            <div class="min-w-0">
+              <div class="font-bold text-sm text-walnut truncate">${escapeHtml(item.name)}</div>
+              <div class="text-xs text-amberAutumn font-medium mt-0.5">Available for claiming</div>
+            </div>
+          </div>
+          <button
+            onclick="openClaim(${item.id})"
+            class="bg-terracotta hover:bg-terracotta-hover text-white text-xs px-3.5 py-1.5 rounded-lg font-semibold transition shadow-xs active:scale-95 shrink-0 min-h-[36px] flex items-center gap-1 cursor-pointer"
+          >
+            <span>Claim This</span>
+            <span>🍁</span>
+          </button>
+        `;
+      }
+
+      return card;
+    }
+
+    function renderPrintView(core, custom) {
+      const container = document.getElementById("print-content");
+      if (!container) return;
+
+      let html = `
+        <div class="mb-4">
+          <h2 class="font-bold text-sm uppercase border-b border-black pb-1 mb-2">Essential Feast Items</h2>
+          <table class="w-full text-left">
+            ${core.map((item, idx) => `
+              <tr class="border-b border-gray-200">
+                <td class="w-6 py-1.5">[ ]</td>
+                <td class="py-1.5 font-medium">${idx + 1}. ${item.name}</td>
+                <td class="py-1.5 font-semibold text-right">${item.claimedBy || '— OPEN —'}</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      `;
+
+      if (custom.length > 0) {
+        html += `
+          <div>
+            <h2 class="font-bold text-sm uppercase border-b border-black pb-1 mb-2">Additional Goodies</h2>
+            <table class="w-full text-left">
+              ${custom.map((item) => `
+                <tr class="border-b border-gray-200">
+                  <td class="w-6 py-1.5">[ ]</td>
+                  <td class="py-1.5 font-medium">${item.name}</td>
+                  <td class="py-1.5 font-semibold text-right">${item.claimedBy}</td>
+                </tr>
+              `).join('')}
+            </table>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+    }
+
+    // =========================================================================
+    // CONFIG & SETTINGS DIALOG
+    // =========================================================================
+    function openConfigModal() {
+      document.getElementById("config-modal").classList.remove("hidden");
+    }
+
+    function closeConfigModal() {
+      document.getElementById("config-modal").classList.add("hidden");
+    }
+
+    function saveConfig() {
+      const input = document.getElementById("config-db-url");
+      const val = input.value.trim();
+      localStorage.setItem(CONFIG_STORAGE_KEY, val);
+
+      if (val) {
+        connectToFirebase(val);
+        showToast("Connected to Firebase Realtime Database!", "🔥");
+      } else {
+        firebaseDb = null;
+        updateSyncUI(false, "Local & Multi-Tab Live");
+        showToast("Switched to Local Multi-Tab Sync", "💾");
+      }
+      closeConfigModal();
+    }
+
+    function resetLedger() {
+      if (confirm("Reset all dishes back to defaults? This will clear all current claims.")) {
+        items = buildDefaultItems();
+        persistItemsLocally(true);
+        pushToCloud(items);
+        render();
+        closeConfigModal();
+        showToast("Feast ledger reset to defaults", "🧹");
+      }
+    }
+
+    // =========================================================================
+    // UTILITIES
+    // =========================================================================
+    function fireConfetti() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.7 },
+          colors: ['#8C3A27', '#C25927', '#D4952B', '#526650', '#FAF6F0']
+        });
+      }
+    }
+
+    let toastTimer;
+    function showToast(msg, icon = "🍁") {
+      const toast = document.getElementById("toast");
+      const toastMsg = document.getElementById("toastMsg");
+      const toastIcon = document.getElementById("toastIcon");
+
+      clearTimeout(toastTimer);
+      toastMsg.innerText = msg;
+      toastIcon.innerText = icon;
+
+      toast.classList.remove("translate-y-16", "opacity-0");
+      toast.classList.add("translate-y-0", "opacity-100");
+
+      toastTimer = setTimeout(() => {
+        toast.classList.add("translate-y-16", "opacity-0");
+        toast.classList.remove("translate-y-0", "opacity-100");
+      }, 3500);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function setupModalClosers() {
+      const modals = [document.getElementById("claim-modal"), document.getElementById("config-modal")];
+      modals.forEach(m => {
+        if (!m) return;
+        m.addEventListener('click', (e) => {
+          if (e.target === m) {
+            m.classList.add("hidden");
+          }
+        });
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === "Escape") {
+          closeClaimModal();
+          closeConfigModal();
+        }
+      });
+
+      const copyBtn = document.getElementById("copyShareBtn");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          const dbUrl = getDbUrl();
+          let shareUrl = window.location.origin + window.location.pathname;
+          if (dbUrl) {
+            shareUrl += `?db=${encodeURIComponent(dbUrl)}`;
+          }
+
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(shareUrl);
+            showToast("Feast link copied with sync settings!", "📋");
+          } else {
+            prompt("Copy this link to share with guests:", shareUrl);
+          }
+        });
+      }
+
+      const openConfigBtn = document.getElementById("openConfigBtn");
+      if (openConfigBtn) {
+        openConfigBtn.addEventListener("click", openConfigModal);
+      }
+    }
+
+    // Launch
+    initApp();
+  </script>
+</body>
 </html>
