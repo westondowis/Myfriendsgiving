@@ -4,18 +4,162 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Friendsgiving: The Feast Ledger</title>
-    <meta name="description" content="Zero-login, mobile-friendly Friendsgiving Potluck coordination single-page web application with live sync and locked dish claims." />
-    <meta property="og:title" content="Friendsgiving: The Feast Ledger" />
-    <meta property="og:description" content="Zero-login, mobile-friendly Friendsgiving Potluck coordination single-page web application with live sync and locked dish claims." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      body { font-family: 'Plus Jakarta Sans', sans-serif; }
+      .font-serif { font-family: 'Fraunces', serif; }
+    </style>
   </head>
-  <body class="bg-[#FAF6F0] text-[#2C1E16] antialiased selection:bg-[#F4DFC8] selection:text-[#9A3412]">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+  <body class="bg-[#FAF6F0] text-[#2C1E16] min-h-screen p-4 sm:p-8">
+    <div class="max-w-xl mx-auto">
+      <header class="text-center mb-6">
+        <h1 class="text-3xl sm:text-4xl font-serif font-bold text-[#8C3A27]">Friendsgiving Feast Ledger</h1>
+        <p class="text-sm text-stone-600 mt-2">Zero login required. Claim an essential item or add your own.</p>
+        <div id="counter" class="mt-4 inline-block bg-[#EAD8C0] px-4 py-1.5 rounded-full text-xs font-semibold text-[#5C2B1D]">
+          0 of 14 items claimed
+        </div>
+      </header>
+
+      <div class="space-y-2.5" id="ledger-list"></div>
+
+      <div class="mt-8 pt-6 border-t border-stone-300">
+        <h2 class="text-lg font-bold font-serif mb-3 text-[#8C3A27]">Bringing Something Else?</h2>
+        <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3">
+          <input id="custom-dish" type="text" placeholder="Dish / Item Name (e.g., Sweet Potato Pie, Rolls)" class="w-full border border-stone-300 p-2.5 rounded-lg text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-[#8C3A27]" />
+          <input id="custom-name" type="text" placeholder="Your Name" class="w-full border border-stone-300 p-2.5 rounded-lg text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-[#8C3A27]" />
+          <div class="flex items-center gap-2">
+            <input id="custom-confirm" type="checkbox" class="h-4 w-4 rounded accent-[#8C3A27]" />
+            <label for="custom-confirm" class="text-xs text-stone-600">I confirm I am bringing this dish</label>
+          </div>
+          <button onclick="addCustomItem()" class="w-full bg-[#8C3A27] text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-[#702E1F] transition">Lock It In</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Claim Modal -->
+    <div id="claim-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+      <div class="bg-white max-w-sm w-full p-5 rounded-2xl shadow-xl space-y-4">
+        <div>
+          <h3 class="font-serif font-bold text-lg text-[#8C3A27]" id="modal-dish-name">Claim Item</h3>
+          <p class="text-xs text-stone-500">Lock in your commitment to bring this dish.</p>
+        </div>
+        <input id="guest-name" type="text" placeholder="Your Name" class="w-full border border-stone-300 p-2.5 rounded-lg text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-[#8C3A27]" />
+        <div class="flex items-center gap-2">
+          <input id="confirm-box" type="checkbox" class="h-4 w-4 rounded accent-[#8C3A27]" />
+          <label for="confirm-box" class="text-xs text-stone-600">I confirm I am bringing this dish</label>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="closeModal()" class="w-1/2 py-2 rounded-lg border border-stone-300 text-stone-600 text-xs font-semibold">Cancel</button>
+          <button onclick="submitClaim()" class="w-1/2 bg-[#8C3A27] text-white py-2 rounded-lg text-xs font-semibold hover:bg-[#702E1F]">Lock It In</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const defaultItems = [
+        "Roast Turkey / Main Protein",
+        "Green Bean Casserole",
+        "Stuffing / Dressing",
+        "Mashed Potatoes and Gravy",
+        "Cranberry Sauce",
+        "Sweet Potato Casserole",
+        "Fresh Dinner Rolls & Butter",
+        "Macaroni & Cheese",
+        "Roasted Fall Vegetables",
+        "Pumpkin Pie & Whipped Cream",
+        "Apple Pie or Pecan Pie",
+        "Sparkling Apple Cider / Wine",
+        "Appetizer / Charcuterie Board",
+        "Ice & Extra Tableware"
+      ];
+
+      let selectedItemId = null;
+      let items = JSON.parse(localStorage.getItem("friendsgiving_ledger_v1")) || 
+        defaultItems.map((name, id) => ({ id, name, claimedBy: null, isCustom: false }));
+
+      function saveAndRender() {
+        localStorage.setItem("friendsgiving_ledger_v1", JSON.stringify(items));
+        render();
+      }
+
+      function openClaim(id) {
+        selectedItemId = id;
+        const item = items.find(i => i.id === id);
+        document.getElementById("modal-dish-name").innerText = `Claim: ${item.name}`;
+        document.getElementById("guest-name").value = "";
+        document.getElementById("confirm-box").checked = false;
+        document.getElementById("claim-modal").classList.remove("hidden");
+      }
+
+      function closeModal() {
+        selectedItemId = null;
+        document.getElementById("claim-modal").classList.add("hidden");
+      }
+
+      function submitClaim() {
+        const name = document.getElementById("guest-name").value.trim();
+        const confirmed = document.getElementById("confirm-box").checked;
+
+        if (!name) { alert("Please enter your name."); return; }
+        if (!confirmed) { alert("Please check the confirmation box."); return; }
+
+        const target = items.find(i => i.id === selectedItemId);
+        if (target) {
+          target.claimedBy = name;
+          closeModal();
+          saveAndRender();
+        }
+      }
+
+      function addCustomItem() {
+        const dish = document.getElementById("custom-dish").value.trim();
+        const name = document.getElementById("custom-name").value.trim();
+        const confirmed = document.getElementById("custom-confirm").checked;
+
+        if (!dish || !name) { alert("Please provide both the dish name and your name."); return; }
+        if (!confirmed) { alert("Please check the confirmation box."); return; }
+
+        items.push({ id: Date.now(), name: dish, claimedBy: name, isCustom: true });
+        document.getElementById("custom-dish").value = "";
+        document.getElementById("custom-name").value = "";
+        document.getElementById("custom-confirm").checked = false;
+        saveAndRender();
+      }
+
+      function render() {
+        const list = document.getElementById("ledger-list");
+        list.innerHTML = "";
+        let claimedCount = 0;
+
+        items.forEach(item => {
+          if (item.claimedBy) claimedCount++;
+          const card = document.createElement("div");
+          card.className = "bg-white p-3.5 rounded-xl border border-stone-200 shadow-sm flex items-center justify-between";
+
+          card.innerHTML = `
+            <div>
+              <div class="font-semibold text-sm text-stone-900">${item.name}</div>
+              <div class="text-xs ${item.claimedBy ? 'text-amber-800 font-medium' : 'text-stone-400'} mt-0.5">
+                ${item.claimedBy ? `Brought by ${item.claimedBy}` : "Available"}
+              </div>
+            </div>
+            <div>
+              ${item.claimedBy 
+                ? `<span class="bg-amber-100 text-amber-900 text-xs px-2.5 py-1 rounded-full font-medium">Locked In</span>` 
+                : `<button onclick="openClaim(${item.id})" class="bg-[#8C3A27] text-white text-xs px-3 py-1.5 rounded-lg font-semibold hover:bg-[#702E1F] transition">Claim</button>`
+              }
+            </div>
+          `;
+          list.appendChild(card);
+        });
+
+        document.getElementById("counter").innerText = `${claimedCount} of ${items.length} items claimed`;
+      }
+
+      render();
+    </script>
   </body>
 </html>
-
