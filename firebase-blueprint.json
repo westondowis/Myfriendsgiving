@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "Dish": {
+      "title": "Dish",
+      "description": "A Thanksgiving feast potluck dish item.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Unique identifier for the dish."
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1,
+          "description": "Name or title of the dish."
+        },
+        "emoji": {
+          "type": "string",
+          "maxLength": 16,
+          "description": "Emoji representing the dish."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["core", "custom"],
+          "description": "Whether the dish is core menu or a custom addition."
+        },
+        "claimedBy": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Name of the guest bringing the dish, or null if unclaimed."
+        },
+        "claimedAt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "ISO timestamp when the dish was claimed."
+        },
+        "order": {
+          "type": "number",
+          "description": "Display sort order."
+        },
+        "isCustom": {
+          "type": "boolean",
+          "description": "Flag indicating if this is an added custom dish."
+        }
+      },
+      "required": ["id", "name", "isCustom"]
+    }
+  },
+  "firestore": {
+    "/potlucks/{potluckId}/dishes/{dishId}": {
+      "schema": "Dish",
+      "description": "Dishes and claims for a Friendsgiving potluck feast."
+    }
+  }
+}

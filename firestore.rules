@@ -1,0 +1,37 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidDish(data) {
+      return data.keys().hasAll(['id', 'name', 'isCustom']) &&
+        data.keys().hasOnly(['id', 'name', 'emoji', 'category', 'claimedBy', 'claimedAt', 'order', 'isCustom', 'notes', 'dietary']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 128 &&
+        data.isCustom is bool &&
+        (!('emoji' in data) || (data.emoji is string && data.emoji.size() <= 32)) &&
+        (!('category' in data) || (data.category is string && (data.category == 'core' || data.category == 'custom'))) &&
+        (!('claimedBy' in data) || data.claimedBy == null || (data.claimedBy is string && data.claimedBy.size() <= 128)) &&
+        (!('claimedAt' in data) || data.claimedAt == null || (data.claimedAt is string && data.claimedAt.size() <= 64)) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+        (!('dietary' in data) || (data.dietary is string && data.dietary.size() <= 128)) &&
+        (!('order' in data) || data.order is number);
+    }
+
+    match /potlucks/{potluckId}/dishes/{dishId} {
+      allow read: if isValidId(potluckId);
+      allow create: if isValidId(potluckId) && isValidId(dishId) && isValidDish(request.resource.data);
+      allow update: if isValidId(potluckId) && isValidId(dishId) && isValidDish(request.resource.data);
+      allow delete: if isValidId(potluckId) && isValidId(dishId) && resource.data.isCustom == true;
+    }
+  }
+}
