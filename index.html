@@ -1,955 +1,202 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Friendsgiving: The Feast Ledger</title>
-  <meta name="description" content="Zero-login, live-syncing Friendsgiving potluck coordination web application." />
-
-  <!-- Google Fonts: Warm Editorial Serif (Fraunces) + Modern Sans (Plus Jakarta Sans) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            canvas: '#FAF6F0',
-            walnut: {
-              DEFAULT: '#2C1E16',
-              soft: '#4A3B32',
-              light: '#6E5D53',
-            },
-            terracotta: {
-              DEFAULT: '#8C3A27',
-              hover: '#732E1E',
-              light: '#F8ECE8',
-            },
-            amberAutumn: {
-              DEFAULT: '#C25927',
-              light: '#F8ECE4',
-            },
-            sage: {
-              DEFAULT: '#526650',
-              light: '#EAF0E9',
-              dark: '#3D4D3B',
-            },
-            goldHarvest: {
-              DEFAULT: '#D4952B',
-              light: '#FEF3C7',
-              text: '#92400E',
-            },
-          },
-          fontFamily: {
-            serif: ['Fraunces', 'serif'],
-            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-          },
-          boxShadow: {
-            warm: '0 4px 20px -2px rgba(44, 30, 22, 0.07), 0 2px 6px -1px rgba(44, 30, 22, 0.04)',
-            warmLg: '0 12px 32px -4px rgba(44, 30, 22, 0.12), 0 4px 12px -2px rgba(44, 30, 22, 0.06)',
-          }
-        }
-      }
-    }
-  </script>
-
-  <!-- Canvas Confetti CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
-  <style>
-    body {
-      background-color: #FAF6F0;
-      color: #2C1E16;
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .font-serif {
-      font-family: 'Fraunces', serif;
-    }
-    .dish-card-claimed {
-      background: linear-gradient(145deg, #ffffff, #F8F5F0);
-      border-color: #E2D7C8;
-    }
-    @media print {
-      body {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        padding: 0 !important;
-      }
-      .no-print {
-        display: none !important;
-      }
-      .print-only {
-        display: block !important;
-      }
-    }
-  </style>
-</head>
-<body class="min-h-screen flex flex-col antialiased selection:bg-terracotta-light selection:text-terracotta">
-
-  <!-- ========================================================================= -->
-  <!-- TOP SYNC HEADER -->
-  <!-- ========================================================================= -->
-  <header class="border-b border-[#EBDDCF] bg-[#FAF6F0]/90 backdrop-blur-md sticky top-0 z-30 transition-all no-print">
-    <div class="max-w-xl mx-auto px-4 py-2.5 flex items-center justify-between text-xs sm:text-sm">
-      <div class="flex items-center gap-2">
-        <span id="syncIndicator" class="relative flex h-2.5 w-2.5">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-        </span>
-        <span id="syncStatusText" class="text-walnut-soft font-medium text-xs">Cloud Sync Active</span>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <button id="shareLinkBtn" class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#DFD4C4] text-walnut-soft hover:text-terracotta hover:border-terracotta transition text-xs font-semibold shadow-xs active:scale-95">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
-          <span>Share Link</span>
-        </button>
-
-        <button id="openSettingsBtn" title="Sync & Room Settings" class="p-1.5 rounded-full text-walnut-light hover:text-walnut hover:bg-[#F2EAE0] transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- ========================================================================= -->
-  <!-- MAIN APP CONTAINER -->
-  <!-- ========================================================================= -->
-  <main class="flex-1 max-w-xl w-full mx-auto px-4 py-6 sm:py-8 no-print">
-
-    <!-- Header Section -->
-    <header class="text-center mb-6">
-      <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-terracotta-light text-terracotta text-xs font-bold tracking-wide uppercase mb-2.5 shadow-2xs">
-        <span>🍁</span>
-        <span>Friendsgiving 2026</span>
-      </div>
-      <h1 class="text-3xl sm:text-4xl font-serif font-bold text-terracotta tracking-tight leading-tight">
-        Friendsgiving Feast Ledger
-      </h1>
-      <p class="text-xs sm:text-sm text-walnut-soft mt-2 max-w-md mx-auto">
-        Zero login required. Claim an essential item or add your own so we don't have eight bowls of potatoes and no pie.
-      </p>
-
-      <!-- Active Counter Pill & Progress Bar -->
-      <div class="mt-4 flex flex-col items-center">
-        <div id="counter" class="inline-block bg-[#EAD8C0] px-4 py-1.5 rounded-full text-xs font-bold text-[#5C2B1D] border border-[#DECBAD] shadow-xs">
-          0 of 14 items covered
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Friendsgiving Feast Ledger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      body { font-family: 'Plus Jakarta Sans', sans-serif; }
+      .font-serif { font-family: 'Fraunces', serif; }
+    </style>
+  </head>
+  <body class="bg-[#FAF6F0] text-[#2C1E16] min-h-screen p-4 sm:p-8">
+    <div class="max-w-xl mx-auto">
+      <header class="text-center mb-6">
+        <h1 class="text-3xl sm:text-4xl font-serif font-bold text-[#8C3A27]">Friendsgiving Feast Ledger</h1>
+        <p class="text-sm text-stone-600 mt-2">Claim a dish below. Syncs live across all devices.</p>
+        <div class="mt-4 flex items-center justify-center gap-2">
+          <div id="counter" class="inline-block bg-[#EAD8C0] px-4 py-1.5 rounded-full text-xs font-semibold text-[#5C2B1D]">
+            Loading feast...
+          </div>
+          <span id="sync-status" class="text-xs text-stone-400">● Live</span>
         </div>
+      </header>
 
-        <div class="w-full max-w-xs mt-2.5 bg-[#EFE7DA] rounded-full h-2 overflow-hidden border border-[#E2D5C3]">
-          <div id="feastProgressBar" class="h-full bg-gradient-to-r from-terracotta to-amberAutumn transition-all duration-500 rounded-full" style="width: 0%"></div>
+      <div class="space-y-2.5" id="ledger-list"></div>
+
+      <div class="mt-8 pt-6 border-t border-stone-300">
+        <h2 class="text-lg font-bold font-serif mb-3 text-[#8C3A27]">Bringing Something Else?</h2>
+        <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3">
+          <input id="custom-dish" type="text" placeholder="Dish / Item Name (e.g., Apple Crisp, Rolls)" class="w-full border border-stone-300 p-2.5 rounded-lg text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-[#8C3A27]" />
+          <input id="custom-name" type="text" placeholder="Your Name" class="w-full border border-stone-300 p-2.5 rounded-lg text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-[#8C3A27]" />
+          <div class="flex items-center gap-2">
+            <input id="custom-confirm" type="checkbox" class="h-4 w-4 rounded accent-[#8C3A27]" />
+            <label for="custom-confirm" class="text-xs text-stone-600">I confirm I am bringing this dish</label>
+          </div>
+          <button id="add-btn" onclick="addCustomItem()" class="w-full bg-[#8C3A27] text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-[#702E1F] transition">Lock It In</button>
         </div>
       </div>
-    </header>
-
-    <!-- Filter Buttons (All, Needed, Claimed) -->
-    <div class="flex items-center justify-between gap-2 mb-4">
-      <div class="flex items-center gap-1 bg-[#EFE8DC] p-1 rounded-xl border border-[#E2D7C5] overflow-x-auto">
-        <button onclick="setFilter('all')" id="tab-all" class="px-3 py-1 rounded-lg text-xs font-semibold bg-walnut text-white shadow-xs transition">
-          All (<span id="count-all">14</span>)
-        </button>
-        <button onclick="setFilter('needed')" id="tab-needed" class="px-3 py-1 rounded-lg text-xs font-medium text-walnut-soft hover:bg-white/60 transition">
-          Needed (<span id="count-needed">14</span>)
-        </button>
-        <button onclick="setFilter('claimed')" id="tab-claimed" class="px-3 py-1 rounded-lg text-xs font-medium text-walnut-soft hover:bg-white/60 transition">
-          Locked (<span id="count-claimed">0</span>)
-        </button>
-      </div>
-
-      <button onclick="syncFromCloud(true)" class="p-1.5 text-walnut-light hover:text-walnut transition" title="Refresh from cloud">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-      </button>
     </div>
 
-    <!-- Curated Core Dishes List -->
-    <div class="space-y-2.5" id="ledger-list">
-      <!-- Injected by JavaScript -->
-    </div>
-
-    <!-- Bringing Something Else? (Custom Items) -->
-    <div class="mt-8 pt-6 border-t border-[#E8DEC8]">
-      <h2 class="text-lg font-bold font-serif mb-1 text-terracotta">Bringing Something Else?</h2>
-      <p class="text-xs text-walnut-light mb-3">Add homemade appetizers, specialty drinks, or family tradition dishes.</p>
-
-      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-[#E7DFD5] shadow-warm space-y-3">
+    <!-- Claim Modal -->
+    <div id="claim-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+      <div class="bg-white max-w-sm w-full p-5 rounded-2xl shadow-xl space-y-4">
         <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-walnut-soft mb-1">
-            Dish / Item Name <span class="text-terracotta">*</span>
-          </label>
-          <input
-            id="custom-dish"
-            type="text"
-            placeholder="e.g., Sweet Potato Pie, Jalapeño Cornbread, Mulled Cider"
-            class="w-full border border-[#D9CEBF] p-2.5 rounded-xl text-sm bg-[#FAF8F5] text-walnut focus:outline-none focus:ring-2 focus:ring-terracotta"
-          />
+          <h3 class="font-serif font-bold text-lg text-[#8C3A27]" id="modal-dish-name">Claim Item</h3>
+          <p class="text-xs text-stone-500">Lock in your commitment to bring this dish.</p>
         </div>
-
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-walnut-soft mb-1">
-            Your Name <span class="text-terracotta">*</span>
-          </label>
-          <input
-            id="custom-name"
-            type="text"
-            placeholder="e.g., Maya & Liam"
-            class="w-full border border-[#D9CEBF] p-2.5 rounded-xl text-sm bg-[#FAF8F5] text-walnut focus:outline-none focus:ring-2 focus:ring-terracotta"
-          />
+        <input id="guest-name" type="text" placeholder="Your Name" class="w-full border border-stone-300 p-2.5 rounded-lg text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-[#8C3A27]" />
+        <div class="flex items-center gap-2">
+          <input id="confirm-box" type="checkbox" class="h-4 w-4 rounded accent-[#8C3A27]" />
+          <label for="confirm-box" class="text-xs text-stone-600">I confirm I am bringing this dish</label>
         </div>
-
-        <div class="flex items-start gap-2.5 pt-0.5">
-          <input
-            id="custom-confirm"
-            type="checkbox"
-            class="mt-0.5 h-4 w-4 rounded accent-terracotta"
-          />
-          <label for="custom-confirm" class="text-xs text-walnut-soft select-none cursor-pointer">
-            I confirm I am bringing this dish and will have it hot & ready!
-          </label>
+        <div class="flex gap-2">
+          <button onclick="closeModal()" class="w-1/2 py-2 rounded-lg border border-stone-300 text-stone-600 text-xs font-semibold">Cancel</button>
+          <button id="claim-btn" onclick="submitClaim()" class="w-1/2 bg-[#8C3A27] text-white py-2 rounded-lg text-xs font-semibold hover:bg-[#702E1F]">Lock It In</button>
         </div>
-
-        <button
-          onclick="addCustomItem()"
-          class="w-full bg-terracotta text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-terracotta-hover transition shadow-xs flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer"
-        >
-          <span>Add to Feast 🥧</span>
-        </button>
       </div>
     </div>
 
-    <!-- Footer Controls -->
-    <footer class="mt-12 text-center text-xs text-walnut-light border-t border-[#E8DEC8] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-      <div>Friendsgiving Feast Ledger &bull; Zero login required</div>
-      <div class="flex items-center gap-4 text-walnut-soft">
-        <button onclick="window.print()" class="hover:text-terracotta transition underline underline-offset-4 cursor-pointer">
-          Print Fridge Checklist
-        </button>
-        <span aria-hidden="true">&bull;</span>
-        <button onclick="openSettingsModal()" class="hover:text-terracotta transition underline underline-offset-4 cursor-pointer">
-          Sync Settings
-        </button>
-      </div>
-    </footer>
-  </main>
+    <script>
+      // Shared cloud database URL for your repository
+      const DB_ENDPOINT = "https://kvdb.io/4yKqU9rJt2B2gUq6PzLd2W/friendsgiving_weston_ledger_v1";
 
-  <!-- ========================================================================= -->
-  <!-- MODAL: 2-STEP CLAIM MODAL -->
-  <!-- ========================================================================= -->
-  <div id="claim-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-    <div class="bg-white max-w-sm w-full p-6 rounded-2xl shadow-warmLg border border-[#E7DFD5] space-y-4">
-      <div>
-        <span class="text-[11px] uppercase font-bold tracking-wider text-terracotta block">Step into the kitchen</span>
-        <h3 class="font-serif font-bold text-lg text-walnut leading-snug mt-0.5" id="modal-dish-name">Claim Item</h3>
-        <p class="text-xs text-walnut-light mt-0.5">Lock in your commitment so everyone knows it's covered.</p>
-      </div>
+      const defaultItems = [
+        "Roast Turkey / Main Protein",
+        "Green Bean Casserole",
+        "Stuffing / Dressing",
+        "Mashed Potatoes and Gravy",
+        "Cranberry Sauce",
+        "Sweet Potato Casserole",
+        "Fresh Dinner Rolls & Butter",
+        "Macaroni & Cheese",
+        "Roasted Fall Vegetables",
+        "Pumpkin Pie & Whipped Cream",
+        "Apple Pie or Pecan Pie",
+        "Sparkling Apple Cider / Wine",
+        "Appetizer / Charcuterie Board",
+        "Ice & Extra Tableware"
+      ];
 
-      <div>
-        <label for="guest-name" class="block text-xs font-bold uppercase tracking-wider text-walnut-soft mb-1">
-          Your Name / Family <span class="text-terracotta">*</span>
-        </label>
-        <input
-          id="guest-name"
-          type="text"
-          placeholder="e.g., Alex & Jordan"
-          class="w-full border border-[#D9CEBF] p-2.5 rounded-xl text-sm bg-[#FAF8F5] text-walnut focus:outline-none focus:ring-2 focus:ring-terracotta font-medium"
-        />
-      </div>
+      let selectedItemId = null;
+      let items = defaultItems.map((name, id) => ({ id, name, claimedBy: null, isCustom: false }));
 
-      <div class="p-3 bg-terracotta-light rounded-xl border border-[#F0D5C3]">
-        <label class="flex items-start gap-2.5 cursor-pointer select-none">
-          <input id="confirm-box" type="checkbox" class="mt-0.5 h-4 w-4 rounded accent-terracotta" />
-          <span class="text-xs text-walnut leading-relaxed font-medium">
-            I confirm I am bringing this dish and will feed the feast!
-          </span>
-        </label>
-      </div>
-
-      <div class="flex gap-2.5 pt-1">
-        <button
-          onclick="closeClaimModal()"
-          class="w-1/3 py-2.5 rounded-xl border border-[#D9CEBF] text-walnut-soft text-xs font-semibold hover:bg-[#F3EDE2] transition"
-        >
-          Cancel
-        </button>
-        <button
-          onclick="submitClaim()"
-          class="w-2/3 bg-terracotta text-white py-2.5 rounded-xl text-xs font-semibold hover:bg-terracotta-hover transition shadow-xs flex items-center justify-center gap-1 active:scale-[0.98] cursor-pointer"
-        >
-          <span>Lock It In 🦃</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========================================================================= -->
-  <!-- MODAL: SYNC & CLOUD SETTINGS -->
-  <!-- ========================================================================= -->
-  <div id="settings-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-    <div class="bg-white max-w-sm w-full p-6 rounded-2xl shadow-warmLg border border-[#E7DFD5] space-y-4">
-      <div class="flex items-start justify-between">
-        <div>
-          <span class="text-[11px] uppercase font-bold tracking-wider text-walnut-light block">Zero-Setup Persistence</span>
-          <h3 class="font-serif font-bold text-lg text-walnut">Cloud Sync</h3>
-        </div>
-        <button onclick="closeSettingsModal()" class="text-walnut-light hover:text-walnut p-1">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-
-      <div class="text-xs text-walnut-soft space-y-2 leading-relaxed bg-[#F7F3EC] p-3 rounded-xl border border-[#E8DEC8]">
-        <p><strong>✓ Multi-Device Cloud Sync</strong> is active!</p>
-        <p>Share your feast link with guests so any dish claimed on one phone updates on everyone else's screen automatically.</p>
-      </div>
-
-      <div>
-        <label class="block text-xs font-bold uppercase tracking-wider text-walnut-soft mb-1">
-          Feast Room ID
-        </label>
-        <input
-          id="custom-room-id"
-          type="text"
-          class="w-full border border-[#D9CEBF] p-2.5 rounded-xl text-xs font-mono bg-[#FAF8F5] text-walnut"
-          readonly
-        />
-      </div>
-
-      <div class="flex gap-2 pt-1">
-        <button
-          onclick="copyShareableUrl()"
-          class="w-full bg-terracotta text-white py-2.5 rounded-xl text-xs font-semibold hover:bg-terracotta-hover transition shadow-xs flex items-center justify-center gap-1.5"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-          <span>Copy Invite Link</span>
-        </button>
-      </div>
-
-      <div class="pt-3 border-t border-[#E8DEC8] flex items-center justify-between">
-        <button onclick="resetLedger()" class="text-xs text-red-600 hover:text-red-700 underline font-semibold">
-          Reset All Dishes to Defaults
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========================================================================= -->
-  <!-- TOAST NOTIFICATION -->
-  <!-- ========================================================================= -->
-  <div id="toast" class="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-walnut text-white shadow-warmLg text-xs font-medium translate-y-16 opacity-0 transition-all duration-300 pointer-events-none no-print">
-    <span id="toastIcon">✨</span>
-    <span id="toastMsg">Notification message</span>
-  </div>
-
-  <!-- ========================================================================= -->
-  <!-- PRINT-ONLY FRIDGE CHECKLIST -->
-  <!-- ========================================================================= -->
-  <div class="hidden print-only p-8 max-w-xl mx-auto">
-    <div class="border-b-2 border-black pb-3 mb-4 text-center">
-      <h1 class="text-2xl font-bold font-serif uppercase">Friendsgiving 2026: The Feast Ledger</h1>
-      <p class="text-xs text-gray-600 mt-1">Fridge Master Checklist &bull; Live Coordination</p>
-    </div>
-    <div id="print-content" class="text-xs space-y-4"></div>
-  </div>
-
-  <!-- ========================================================================= -->
-  <!-- JAVASCRIPT: SELF-CONTAINED PERSISTENCE & WORKFLOW ENGINE -->
-  <!-- ========================================================================= -->
-  <script>
-    /**
-     * 14 Curated Traditional Thanksgiving Items
-     */
-    const DEFAULT_ITEMS = [
-      { id: 1, name: "Roast Turkey / Main Protein", emoji: "🦃" },
-      { id: 2, name: "Green Bean Casserole", emoji: "🥬" },
-      { id: 3, name: "Traditional Stuffing / Dressing", emoji: "🍞" },
-      { id: 4, name: "Mashed Potatoes & Gravy", emoji: "🥔" },
-      { id: 5, name: "Cranberry Sauce", emoji: "🫐" },
-      { id: 6, name: "Sweet Potato Casserole", emoji: "🍠" },
-      { id: 7, name: "Fresh Dinner Rolls & Butter", emoji: "🥖" },
-      { id: 8, name: "Macaroni & Cheese", emoji: "🧀" },
-      { id: 9, name: "Roasted Fall Vegetables", emoji: "🥕" },
-      { id: 10, name: "Pumpkin Pie & Whipped Cream", emoji: "🎃" },
-      { id: 11, name: "Apple Pie or Pecan Pie", emoji: "🥧" },
-      { id: 12, name: "Beverages / Wine / Cider", emoji: "🍷" },
-      { id: 13, name: "Appetizer / Charcuterie Board", emoji: "🍇" },
-      { id: 14, name: "Ice & Disposable Tableware", emoji: "🧊" }
-    ];
-
-    // Master Public Cloud Object ID (CORS-enabled zero-setup REST store)
-    const MASTER_CLOUD_ID = "ff808181a09d98f701a15125869c10bc";
-    const CLOUD_API_BASE = "https://api.restful-api.dev/objects";
-    const STORAGE_KEY = "friendsgiving_feast_ledger_root_v1";
-    const ROOM_KEY = "friendsgiving_active_room_id";
-
-    // State
-    let items = [];
-    let selectedItemId = null;
-    let currentFilter = 'all';
-    let activeRoomId = MASTER_CLOUD_ID;
-    let broadcastChannel = null;
-    let isSyncing = false;
-
-    // Initialization
-    function init() {
-      // 1. Resolve Room ID from URL or Storage
-      const urlParams = new URLSearchParams(window.location.search);
-      const roomParam = urlParams.get('room') || urlParams.get('potluck');
-      if (roomParam) {
-        activeRoomId = roomParam.trim();
-        localStorage.setItem(ROOM_KEY, activeRoomId);
-      } else {
-        const storedRoom = localStorage.getItem(ROOM_KEY);
-        if (storedRoom) {
-          activeRoomId = storedRoom;
-        } else {
-          activeRoomId = MASTER_CLOUD_ID;
-        }
-      }
-
-      const roomInput = document.getElementById("custom-room-id");
-      if (roomInput) roomInput.value = activeRoomId;
-
-      // 2. Setup Same-Device Instant BroadcastChannel
-      if ('BroadcastChannel' in window) {
-        broadcastChannel = new BroadcastChannel('friendsgiving_root_sync');
-        broadcastChannel.onmessage = (event) => {
-          if (event.data && event.data.type === 'STATE_UPDATED' && Array.isArray(event.data.payload)) {
-            items = event.data.payload;
-            render();
-          }
-        };
-      }
-
-      // 3. Fallback Storage Event
-      window.addEventListener('storage', (e) => {
-        if (e.key === STORAGE_KEY && e.newValue) {
-          try {
-            items = JSON.parse(e.newValue);
-            render();
-          } catch (err) {}
-        }
-      });
-
-      // 4. Load from LocalStorage first so UI is instant
-      loadLocalState();
-      render();
-
-      // 5. Fetch live state from Cloud REST Store immediately
-      syncFromCloud(false);
-
-      // 6. Start auto-polling every 6 seconds for live multi-phone sync
-      setInterval(() => {
-        syncFromCloud(false);
-      }, 6000);
-
-      // 7. Setup modal click-outside handlers
-      setupModalListeners();
-    }
-
-    function buildDefaultItems() {
-      return DEFAULT_ITEMS.map(item => ({
-        id: item.id,
-        name: item.name,
-        emoji: item.emoji,
-        claimedBy: null,
-        claimedAt: null,
-        isCustom: false
-      }));
-    }
-
-    function loadLocalState() {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
+      // Fetch from shared cloud store
+      async function loadData() {
         try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            items = parsed;
-            return;
-          }
-        } catch (e) {}
-      }
-      items = buildDefaultItems();
-      saveLocalState(false);
-    }
-
-    function saveLocalState(broadcast = true) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-      if (broadcast && broadcastChannel) {
-        broadcastChannel.postMessage({ type: 'STATE_UPDATED', payload: items });
-      }
-    }
-
-    // =========================================================================
-    // CLOUD PERSISTENCE (Zero-Config REST Backend + Polling)
-    // =========================================================================
-    async function syncFromCloud(isManual = false) {
-      if (isSyncing) return;
-      isSyncing = true;
-
-      try {
-        const res = await fetch(`${CLOUD_API_BASE}/${activeRoomId}`, {
-          headers: { 'Accept': 'application/json' }
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          if (json && json.data && json.data.ledger) {
-            let cloudItems = null;
-            try {
-              cloudItems = typeof json.data.ledger === 'string'
-                ? JSON.parse(json.data.ledger)
-                : json.data.ledger;
-            } catch (parseErr) {}
-
-            if (Array.isArray(cloudItems) && cloudItems.length > 0) {
-              items = cloudItems;
-              saveLocalState(true);
+          const res = await fetch(DB_ENDPOINT);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              items = data;
               render();
-              updateSyncBadge(true, "Cloud Sync Active");
-              if (isManual) showToast("Synchronized with cloud!", "☁️");
-            } else {
-              // Remote object is empty, push initial default items
-              await pushToCloud();
-              updateSyncBadge(true, "Cloud Sync Initialized");
             }
+          } else if (res.status === 404) {
+            // First time loading: initialize database
+            await saveToCloud(items);
           }
-        } else if (res.status === 404) {
-          // Room ID doesn't exist yet, create it
-          await pushToCloud();
-          updateSyncBadge(true, "Cloud Room Created");
-        } else {
-          updateSyncBadge(false, "Saved Locally (Offline)");
+        } catch (e) {
+          console.warn("Sync fetch error, displaying current memory state:", e);
         }
-      } catch (err) {
-        console.warn("Cloud sync network notice:", err);
-        updateSyncBadge(false, "Saved Locally (Offline)");
-      } finally {
-        isSyncing = false;
       }
-    }
 
-    async function pushToCloud() {
-      try {
-        const payload = {
-          name: "friendsgiving_feast_ledger",
-          data: {
-            ledger: JSON.stringify(items)
-          }
-        };
-
-        const res = await fetch(`${CLOUD_API_BASE}/${activeRoomId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!res.ok && res.status === 404) {
-          // If object doesn't exist, create it
-          const createRes = await fetch(CLOUD_API_BASE, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+      async function saveToCloud(updatedList) {
+        document.getElementById("sync-status").innerText = "● Saving...";
+        try {
+          await fetch(DB_ENDPOINT, {
+            method: "POST",
+            body: JSON.stringify(updatedList),
+            headers: { "Content-Type": "application/json" }
           });
-          if (createRes.ok) {
-            const created = await createRes.json();
-            if (created && created.id) {
-              activeRoomId = created.id;
-              localStorage.setItem(ROOM_KEY, activeRoomId);
-              const roomInput = document.getElementById("custom-room-id");
-              if (roomInput) roomInput.value = activeRoomId;
-            }
-          }
+          document.getElementById("sync-status").innerText = "● Synced";
+        } catch (e) {
+          document.getElementById("sync-status").innerText = "● Offline";
         }
-        updateSyncBadge(true, "Cloud Synced");
-      } catch (err) {
-        console.warn("Cloud write notice (data preserved locally):", err);
-        updateSyncBadge(false, "Saved Locally (Offline)");
-      }
-    }
-
-    function updateSyncBadge(isCloud, text) {
-      const indicator = document.getElementById("syncIndicator");
-      const statusText = document.getElementById("syncStatusText");
-      if (!indicator || !statusText) return;
-
-      statusText.innerText = text;
-      const dot = indicator.querySelector("span.relative");
-      const ping = indicator.querySelector("span.animate-ping");
-
-      if (isCloud) {
-        dot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500";
-        ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
-      } else {
-        dot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500";
-        ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
-      }
-    }
-
-    // =========================================================================
-    // CLAIMING & CUSTOM DISH FLOWS
-    // =========================================================================
-    function openClaim(id) {
-      selectedItemId = id;
-      const item = items.find(i => i.id === id);
-      if (!item || item.claimedBy) return;
-
-      document.getElementById("modal-dish-name").innerText = `${item.emoji || '🍽️'} ${item.name}`;
-      document.getElementById("guest-name").value = "";
-      document.getElementById("confirm-box").checked = false;
-      document.getElementById("claim-modal").classList.remove("hidden");
-
-      setTimeout(() => {
-        document.getElementById("guest-name").focus();
-      }, 100);
-    }
-
-    function closeClaimModal() {
-      selectedItemId = null;
-      document.getElementById("claim-modal").classList.add("hidden");
-    }
-
-    function submitClaim() {
-      const name = document.getElementById("guest-name").value.trim();
-      const confirmed = document.getElementById("confirm-box").checked;
-
-      if (!name) {
-        showToast("Please enter your name!", "⚠️");
-        return;
-      }
-      if (!confirmed) {
-        showToast("Please check the confirmation box!", "⚠️");
-        return;
       }
 
-      const target = items.find(i => i.id === selectedItemId);
-      if (!target) return;
-
-      if (target.claimedBy) {
-        showToast("Someone just locked this dish in a moment ago!", "⚠️");
-        closeClaimModal();
-        render();
-        return;
+      function openClaim(id) {
+        selectedItemId = id;
+        const item = items.find(i => i.id === id);
+        document.getElementById("modal-dish-name").innerText = `Claim: ${item.name}`;
+        document.getElementById("guest-name").value = "";
+        document.getElementById("confirm-box").checked = false;
+        document.getElementById("claim-modal").classList.remove("hidden");
       }
 
-      target.claimedBy = name;
-      target.claimedAt = new Date().toISOString();
-
-      saveLocalState(true);
-      pushToCloud();
-      closeClaimModal();
-      render();
-
-      fireConfetti();
-      showToast(`${name} locked in ${target.name}!`, "🎉");
-    }
-
-    function addCustomItem() {
-      const dishInput = document.getElementById("custom-dish");
-      const nameInput = document.getElementById("custom-name");
-      const confirmInput = document.getElementById("custom-confirm");
-
-      const dish = dishInput.value.trim();
-      const name = nameInput.value.trim();
-      const confirmed = confirmInput.checked;
-
-      if (!dish || !name) {
-        showToast("Please provide both the dish name and your name.", "⚠️");
-        return;
-      }
-      if (!confirmed) {
-        showToast("Please check the confirmation box.", "⚠️");
-        return;
+      function closeModal() {
+        selectedItemId = null;
+        document.getElementById("claim-modal").classList.add("hidden");
       }
 
-      const newItem = {
-        id: Date.now(),
-        name: dish,
-        emoji: "🥧",
-        claimedBy: name,
-        claimedAt: new Date().toISOString(),
-        isCustom: true
-      };
+      async function submitClaim() {
+        const name = document.getElementById("guest-name").value.trim();
+        const confirmed = document.getElementById("confirm-box").checked;
 
-      items.push(newItem);
-      dishInput.value = "";
-      nameInput.value = "";
-      confirmInput.checked = false;
+        if (!name) { alert("Please enter your name."); return; }
+        if (!confirmed) { alert("Please check the confirmation box."); return; }
 
-      saveLocalState(true);
-      pushToCloud();
-      render();
-
-      fireConfetti();
-      showToast(`Added "${dish}" to the Feast Ledger!`, "✨");
-    }
-
-    function requestUnclaim(id) {
-      const target = items.find(i => i.id === id);
-      if (!target) return;
-
-      if (confirm(`Do you want to release "${target.name}" claimed by ${target.claimedBy}? It will be open for anyone else to claim.`)) {
-        target.claimedBy = null;
-        target.claimedAt = null;
-        saveLocalState(true);
-        pushToCloud();
-        render();
-        showToast(`"${target.name}" is back on the open ledger!`, "🔄");
-      }
-    }
-
-    function removeCustom(id) {
-      const target = items.find(i => i.id === id);
-      if (!target) return;
-
-      if (confirm(`Remove "${target.name}" from the feast ledger?`)) {
-        items = items.filter(i => i.id !== id);
-        saveLocalState(true);
-        pushToCloud();
-        render();
-        showToast(`Removed "${target.name}"`, "🗑️");
-      }
-    }
-
-    // =========================================================================
-    // RENDERING LOGIC
-    // =========================================================================
-    function setFilter(filter) {
-      currentFilter = filter;
-      ['all', 'needed', 'claimed'].forEach(f => {
-        const btn = document.getElementById(`tab-${f}`);
-        if (btn) {
-          if (f === filter) {
-            btn.className = "px-3 py-1 rounded-lg text-xs font-semibold bg-walnut text-white shadow-xs transition";
-          } else {
-            btn.className = "px-3 py-1 rounded-lg text-xs font-medium text-walnut-soft hover:bg-white/60 transition";
-          }
+        const target = items.find(i => i.id === selectedItemId);
+        if (target) {
+          target.claimedBy = name;
+          closeModal();
+          render();
+          await saveToCloud(items);
         }
-      });
-      render();
-    }
-
-    function render() {
-      const listContainer = document.getElementById("ledger-list");
-      if (!listContainer) return;
-
-      listContainer.innerHTML = "";
-
-      let claimedCount = 0;
-      items.forEach(i => { if (i.claimedBy) claimedCount++; });
-
-      const neededCount = items.length - claimedCount;
-
-      // Update Top Summary Counter & Progress Bar
-      const counterEl = document.getElementById("counter");
-      if (counterEl) {
-        counterEl.innerText = `${claimedCount} of ${items.length} items covered`;
       }
 
-      const progressBar = document.getElementById("feastProgressBar");
-      if (progressBar) {
-        const pct = items.length > 0 ? Math.round((claimedCount / items.length) * 100) : 0;
-        progressBar.style.width = `${pct}%`;
+      async function addCustomItem() {
+        const dish = document.getElementById("custom-dish").value.trim();
+        const name = document.getElementById("custom-name").value.trim();
+        const confirmed = document.getElementById("custom-confirm").checked;
+
+        if (!dish || !name) { alert("Please enter both the dish name and your name."); return; }
+        if (!confirmed) { alert("Please check the confirmation box."); return; }
+
+        items.push({ id: Date.now(), name: dish, claimedBy: name, isCustom: true });
+        document.getElementById("custom-dish").value = "";
+        document.getElementById("custom-name").value = "";
+        document.getElementById("custom-confirm").checked = false;
+        render();
+        await saveToCloud(items);
       }
 
-      document.getElementById("count-all").innerText = items.length;
-      document.getElementById("count-needed").innerText = neededCount;
-      document.getElementById("count-claimed").innerText = claimedCount;
+      function render() {
+        const list = document.getElementById("ledger-list");
+        list.innerHTML = "";
+        let claimedCount = 0;
 
-      // Filtered items
-      const displayItems = items.filter(item => {
-        if (currentFilter === 'needed' && item.claimedBy) return false;
-        if (currentFilter === 'claimed' && !item.claimedBy) return false;
-        return true;
-      });
+        items.forEach(item => {
+          if (item.claimedBy) claimedCount++;
+          const card = document.createElement("div");
+          card.className = "bg-white p-3.5 rounded-xl border border-stone-200 shadow-sm flex items-center justify-between";
 
-      if (displayItems.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "bg-white p-6 rounded-xl border border-dashed border-[#DFD5C5] text-center text-xs text-walnut-light";
-        empty.innerText = "No dishes found in this category.";
-        listContainer.appendChild(empty);
-      } else {
-        displayItems.forEach(item => {
-          listContainer.appendChild(createDishCard(item));
-        });
-      }
-
-      renderPrintView();
-    }
-
-    function createDishCard(item) {
-      const isClaimed = !!item.claimedBy;
-      const card = document.createElement("div");
-
-      if (isClaimed) {
-        card.className = "dish-card-claimed p-3.5 sm:p-4 rounded-xl border border-[#E2D7C8] shadow-xs flex items-center justify-between gap-3 transition";
-        card.innerHTML = `
-          <div class="flex items-center gap-3 min-w-0">
-            <span class="text-xl sm:text-2xl select-none shrink-0">${item.emoji || '🍽️'}</span>
-            <div class="min-w-0">
-              <div class="font-bold text-sm text-walnut-soft line-through opacity-85 truncate">${escapeHtml(item.name)}</div>
-              <div class="flex items-center gap-1.5 text-xs text-sage font-medium mt-0.5">
-                <span>Claimed by <strong>${escapeHtml(item.claimedBy)}</strong></span>
-                <span class="text-stone-300">&bull;</span>
-                <button onclick="requestUnclaim(${item.id})" class="text-stone-400 hover:text-red-700 underline text-[11px] transition">Swap?</button>
+          card.innerHTML = `
+            <div>
+              <div class="font-semibold text-sm text-stone-900">${item.name}</div>
+              <div class="text-xs ${item.claimedBy ? 'text-amber-800 font-medium' : 'text-stone-400'} mt-0.5">
+                ${item.claimedBy ? `Brought by ${item.claimedBy}` : "Available"}
               </div>
             </div>
-          </div>
-          <div class="flex items-center gap-1.5 shrink-0">
-            <span class="bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] text-[11px] px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
-              <svg class="w-3 h-3 text-[#92400E]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-              <span>Locked</span>
-            </span>
-            ${item.isCustom ? `<button onclick="removeCustom(${item.id})" class="text-stone-400 hover:text-red-600 p-1 rounded transition" title="Delete custom dish"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : ''}
-          </div>
-        `;
-      } else {
-        card.className = "bg-white p-3.5 sm:p-4 rounded-xl border border-[#E7DFD5] shadow-xs hover:border-terracotta/40 flex items-center justify-between gap-3 transition group";
-        card.innerHTML = `
-          <div class="flex items-center gap-3 min-w-0">
-            <span class="text-xl sm:text-2xl select-none group-hover:scale-105 transition-transform shrink-0">${item.emoji || '🥘'}</span>
-            <div class="min-w-0">
-              <div class="font-bold text-sm text-walnut truncate">${escapeHtml(item.name)}</div>
-              <div class="text-xs text-amberAutumn font-medium mt-0.5">Available for claiming</div>
+            <div>
+              ${item.claimedBy 
+                ? `<span class="bg-amber-100 text-amber-900 text-xs px-2.5 py-1 rounded-full font-medium">Locked In</span>` 
+                : `<button onclick="openClaim(${item.id})" class="bg-[#8C3A27] text-white text-xs px-3 py-1.5 rounded-lg font-semibold hover:bg-[#702E1F] transition">Claim</button>`
+              }
             </div>
-          </div>
-          <button
-            onclick="openClaim(${item.id})"
-            class="bg-terracotta hover:bg-terracotta-hover text-white text-xs px-3.5 py-1.5 rounded-lg font-semibold transition shadow-xs active:scale-95 shrink-0 min-h-[36px] flex items-center gap-1 cursor-pointer"
-          >
-            <span>Claim This</span>
-            <span>🍁</span>
-          </button>
-        `;
-      }
-
-      return card;
-    }
-
-    function renderPrintView() {
-      const container = document.getElementById("print-content");
-      if (!container) return;
-
-      container.innerHTML = `
-        <table class="w-full text-left">
-          ${items.map((item, idx) => `
-            <tr class="border-b border-gray-200">
-              <td class="w-6 py-1.5">[ ]</td>
-              <td class="py-1.5 font-medium">${idx + 1}. ${item.name}</td>
-              <td class="py-1.5 font-semibold text-right">${item.claimedBy ? item.claimedBy : '— OPEN —'}</td>
-            </tr>
-          `).join('')}
-        </table>
-      `;
-    }
-
-    // =========================================================================
-    // SETTINGS & SHARING
-    // =========================================================================
-    function openSettingsModal() {
-      document.getElementById("settings-modal").classList.remove("hidden");
-    }
-
-    function closeSettingsModal() {
-      document.getElementById("settings-modal").classList.add("hidden");
-    }
-
-    function copyShareableUrl() {
-      const shareUrl = window.location.origin + window.location.pathname + `?room=${encodeURIComponent(activeRoomId)}`;
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(shareUrl);
-        showToast("Feast link copied with sync room!", "📋");
-      } else {
-        prompt("Copy this link to share with guests:", shareUrl);
-      }
-    }
-
-    function resetLedger() {
-      if (confirm("Reset all dishes back to defaults? This will clear all current claims across all connected phones.")) {
-        items = buildDefaultItems();
-        saveLocalState(true);
-        pushToCloud();
-        render();
-        closeSettingsModal();
-        showToast("Feast ledger reset to defaults", "🧹");
-      }
-    }
-
-    // =========================================================================
-    // UTILITIES
-    // =========================================================================
-    function fireConfetti() {
-      if (typeof confetti === 'function') {
-        confetti({
-          particleCount: 50,
-          spread: 60,
-          origin: { y: 0.7 },
-          colors: ['#8C3A27', '#C25927', '#D4952B', '#526650', '#FAF6F0']
+          `;
+          list.appendChild(card);
         });
-      }
-    }
 
-    let toastTimer;
-    function showToast(msg, icon = "🍁") {
-      const toast = document.getElementById("toast");
-      const toastMsg = document.getElementById("toastMsg");
-      const toastIcon = document.getElementById("toastIcon");
-
-      clearTimeout(toastTimer);
-      toastMsg.innerText = msg;
-      toastIcon.innerText = icon;
-
-      toast.classList.remove("translate-y-16", "opacity-0");
-      toast.classList.add("translate-y-0", "opacity-100");
-
-      toastTimer = setTimeout(() => {
-        toast.classList.add("translate-y-16", "opacity-0");
-        toast.classList.remove("translate-y-0", "opacity-100");
-      }, 3500);
-    }
-
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-
-    function setupModalListeners() {
-      [document.getElementById("claim-modal"), document.getElementById("settings-modal")].forEach(modal => {
-        if (!modal) return;
-        modal.addEventListener('click', (e) => {
-          if (e.target === modal) {
-            modal.classList.add("hidden");
-          }
-        });
-      });
-
-      document.addEventListener('keydown', (e) => {
-        if (e.key === "Escape") {
-          closeClaimModal();
-          closeSettingsModal();
-        }
-      });
-
-      const shareBtn = document.getElementById("shareLinkBtn");
-      if (shareBtn) {
-        shareBtn.addEventListener("click", copyShareableUrl);
+        document.getElementById("counter").innerText = `${claimedCount} of ${items.length} items claimed`;
       }
 
-      const openSettings = document.getElementById("openSettingsBtn");
-      if (openSettings) {
-        openSettings.addEventListener("click", openSettingsModal);
-      }
-    }
-
-    // Start App
-    init();
-  </script>
-</body>
+      // Initial load & automatic polling every 6 seconds to pull cross-device updates
+      loadData();
+      setInterval(loadData, 6000);
+    </script>
+  </body>
 </html>
