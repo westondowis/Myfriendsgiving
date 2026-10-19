@@ -1,0 +1,6 @@
+{
+  "summary": "Implementation plan for Google-authenticated host creation and zero-login guest claiming with persistent Firebase Firestore real-time ledger.",
+  "updatedAt": "2026-10-19T15:25:29.276121291Z",
+  "requestFeedback": true,
+  "userFacing": true
+}
