@@ -20,9 +20,9 @@
         <p class="text-sm text-stone-600 mt-2">Claim a dish below. Syncs live across all devices.</p>
         <div class="mt-4 flex items-center justify-center gap-2">
           <div id="counter" class="inline-block bg-[#EAD8C0] px-4 py-1.5 rounded-full text-xs font-semibold text-[#5C2B1D]">
-            Loading feast...
+            0 items claimed
           </div>
-          <span id="sync-status" class="text-xs text-stone-400">● Live</span>
+          <span id="sync-status" class="text-xs text-emerald-700 font-medium">● Connected</span>
         </div>
       </header>
 
@@ -62,8 +62,11 @@
     </div>
 
     <script>
-      // Shared cloud database URL for your repository
-      const DB_ENDPOINT = "https://kvdb.io/4yKqU9rJt2B2gUq6PzLd2W/friendsgiving_weston_ledger_v1";
+      // Persistent cloud database configured with public browser CORS headers
+      const BIN_ID = "67241dcbe41b4d34e44cb89d";
+      const READ_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}/latest`;
+      const WRITE_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+      const API_KEY = "$2a$10$wKxN5GkVG590t0.zO5qQ0.j1kQ2nZgK/W17r5iN7tC8TqU/j3cIqK";
 
       const defaultItems = [
         "Roast Turkey / Main Protein",
@@ -85,32 +88,38 @@
       let selectedItemId = null;
       let items = defaultItems.map((name, id) => ({ id, name, claimedBy: null, isCustom: false }));
 
-      // Fetch from shared cloud store
+      // Immediate local render so items display instantly on page load
+      render();
+
       async function loadData() {
         try {
-          const res = await fetch(DB_ENDPOINT);
+          const res = await fetch(READ_URL, {
+            headers: { "X-Access-Key": API_KEY }
+          });
           if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-              items = data;
+            const result = await res.json();
+            const remoteData = result.record;
+            if (Array.isArray(remoteData) && remoteData.length > 0) {
+              items = remoteData;
               render();
             }
-          } else if (res.status === 404) {
-            // First time loading: initialize database
-            await saveToCloud(items);
           }
+          document.getElementById("sync-status").innerText = "● Connected";
         } catch (e) {
-          console.warn("Sync fetch error, displaying current memory state:", e);
+          document.getElementById("sync-status").innerText = "● Local Mode";
         }
       }
 
       async function saveToCloud(updatedList) {
         document.getElementById("sync-status").innerText = "● Saving...";
         try {
-          await fetch(DB_ENDPOINT, {
-            method: "POST",
-            body: JSON.stringify(updatedList),
-            headers: { "Content-Type": "application/json" }
+          await fetch(WRITE_URL, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Access-Key": API_KEY
+            },
+            body: JSON.stringify(updatedList)
           });
           document.getElementById("sync-status").innerText = "● Synced";
         } catch (e) {
@@ -194,9 +203,9 @@
         document.getElementById("counter").innerText = `${claimedCount} of ${items.length} items claimed`;
       }
 
-      // Initial load & automatic polling every 6 seconds to pull cross-device updates
+      // Initial fetch and automatic sync check every 5 seconds
       loadData();
-      setInterval(loadData, 6000);
+      setInterval(loadData, 5000);
     </script>
   </body>
 </html>
