@@ -165,7 +165,7 @@
       <!-- Active Counter Pill & Progress Bar -->
       <div class="mt-4 flex flex-col items-center">
         <div id="counter" class="inline-block bg-[#EAD8C0] px-4 py-1.5 rounded-full text-xs font-bold text-[#5C2B1D] border border-[#DECBAD] shadow-xs">
-          0 of 14 core items covered
+          0 of 17 items covered
         </div>
 
         <div class="w-full max-w-xs mt-2.5 bg-[#EFE7DA] rounded-full h-2 overflow-hidden border border-[#E2D5C3]">
@@ -178,10 +178,10 @@
     <div class="flex items-center justify-between gap-2 mb-4">
       <div class="flex items-center gap-1 bg-[#EFE8DC] p-1 rounded-xl border border-[#E2D7C5] overflow-x-auto">
         <button onclick="window.setFilter('all')" id="tab-all" class="px-3 py-1 rounded-lg text-xs font-semibold bg-walnut text-white shadow-xs transition cursor-pointer">
-          All (<span id="count-all">14</span>)
+          All (<span id="count-all">17</span>)
         </button>
         <button onclick="window.setFilter('needed')" id="tab-needed" class="px-3 py-1 rounded-lg text-xs font-medium text-walnut-soft hover:bg-white/60 transition cursor-pointer">
-          Needed (<span id="count-needed">14</span>)
+          Needed (<span id="count-needed">17</span>)
         </button>
         <button onclick="window.setFilter('claimed')" id="tab-claimed" class="px-3 py-1 rounded-lg text-xs font-medium text-walnut-soft hover:bg-white/60 transition cursor-pointer">
           Locked (<span id="count-claimed">0</span>)
@@ -372,7 +372,7 @@
         <div class="p-3 bg-[#EAF0E9] rounded-xl border border-[#C5D6C4] flex items-center gap-2.5">
           <input id="new-potluck-template" type="checkbox" checked class="h-4 w-4 rounded accent-sage" />
           <label for="new-potluck-template" class="text-xs text-walnut font-medium select-none cursor-pointer">
-            Pre-populate with the 14 traditional Thanksgiving staples (turkey, stuffing, pies, etc.)
+            Pre-populate with traditional Thanksgiving staples (turkey, stuffing, apple & pecan pies, holiday drinks, etc.)
           </label>
         </div>
 
@@ -478,7 +478,7 @@
     const googleProvider = new GoogleAuthProvider();
 
     /**
-     * 14 Curated Traditional Thanksgiving Items
+     * Curated Traditional Thanksgiving Items (Expanded with Apple Pie, Pecan Pie, and Holiday Drinks)
      */
     const DEFAULT_ITEMS = [
       { id: "dish-1", name: "Roast Turkey / Main Protein", emoji: "🦃", order: 1, isCustom: false },
@@ -492,7 +492,10 @@
       { id: "dish-9", name: "Roasted Fall Vegetables", emoji: "🥕", order: 9, isCustom: false },
       { id: "dish-10", name: "Pumpkin Pie & Whipped Cream", emoji: "🎃", order: 10, isCustom: false },
       { id: "dish-11", name: "Apple Pie or Pecan Pie", emoji: "🥧", order: 11, isCustom: false },
+      { id: "dish-apple-pie", name: "Apple Pie", emoji: "🥧", order: 11.2, isCustom: false },
+      { id: "dish-pecan-pie", name: "Pecan Pie", emoji: "🥧", order: 11.3, isCustom: false },
       { id: "dish-12", name: "Beverages / Wine / Cider", emoji: "🍷", order: 12, isCustom: false },
+      { id: "dish-holiday-drinks", name: "Holiday Drinks (e.g., Hot Toddies / Mulled Wine)", emoji: "☕", order: 12.5, isCustom: false },
       { id: "dish-13", name: "Appetizer / Charcuterie Board", emoji: "🍇", order: 13, isCustom: false },
       { id: "dish-14", name: "Ice & Disposable Tableware", emoji: "🧊", order: 14, isCustom: false }
     ];
@@ -576,15 +579,55 @@
 
       unsubscribeDishes = onSnapshot(dishesRef, (snapshot) => {
         if (snapshot.empty) {
-          // Empty potluck dishes collection, auto-seed with 14 items
+          // Empty potluck dishes collection, auto-seed with curated items
           seedPotluckDishes(potluckId);
           return;
         }
 
         const loaded = [];
+        const existingIds = new Set();
         snapshot.forEach((docSnap) => {
-          loaded.push(docSnap.data());
+          const dishData = docSnap.data();
+          loaded.push(dishData);
+          existingIds.add(dishData.id || docSnap.id);
         });
+
+        // Non-destructive addition: check if any default items are missing from this feast
+        const missingDefaults = DEFAULT_ITEMS.filter(item => !existingIds.has(item.id));
+        if (missingDefaults.length > 0) {
+          // Asynchronously write ONLY the missing items to Firestore without modifying existing items or claims
+          (async () => {
+            for (const item of missingDefaults) {
+              try {
+                const dishDoc = doc(db, 'potlucks', potluckId, 'dishes', item.id);
+                await setDoc(dishDoc, {
+                  id: item.id,
+                  name: item.name,
+                  emoji: item.emoji,
+                  order: item.order,
+                  isCustom: false,
+                  claimedBy: null,
+                  claimedAt: null
+                });
+              } catch (err) {
+                console.warn("Backfill notice for missing dish:", item.id, err);
+              }
+            }
+          })();
+
+          // Also include the missing items in local display immediately
+          for (const item of missingDefaults) {
+            loaded.push({
+              id: item.id,
+              name: item.name,
+              emoji: item.emoji,
+              order: item.order,
+              isCustom: false,
+              claimedBy: null,
+              claimedAt: null
+            });
+          }
+        }
 
         // Sort items: core first (by order), then custom items
         loaded.sort((a, b) => (a.order || 99) - (b.order || 99));
@@ -756,7 +799,7 @@
         // Write potluck document
         await setDoc(doc(db, 'potlucks', newPotluckId), potluckData);
 
-        // Pre-populate with the 14 core dishes if requested
+        // Pre-populate with all curated dishes if requested
         if (templateCheckbox.checked) {
           for (const item of DEFAULT_ITEMS) {
             await setDoc(doc(db, 'potlucks', newPotluckId, 'dishes', item.id), {

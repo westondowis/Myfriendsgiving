@@ -1,141 +1,95 @@
-# Google Host Authentication & Zero-Login Guest Feast Ledger
+# Additive Menu Expansion: Apple Pie, Pecan Pie & Holiday Drinks
 
-Provide a seamless dual-tier Friendsgiving coordination platform where hosts authenticate with Google to create and govern potlucks, while guests access and claim items instantly via direct share links with zero login friction.
+Seamlessly add separate **Apple Pie**, **Pecan Pie**, and **Holiday Drinks (e.g., Hot Toddies / Mulled Wine)** to the main items list while strictly preserving all existing claims, guest assignments, and custom dishes in the live ledger.
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> - **Dual Access Architecture**: The potluck owner signs in securely with Google to establish and manage the event. Guests receiving the link bypass authentication entirely and can immediately claim dishes.
-> - **Direct Firestore Realtime Streaming**: Replaces unstable mock REST endpoints with direct Firebase Firestore real-time snapshot listeners (`onSnapshot`) tied to the provisioned database (`ai-studio-feastledger-f422337c-8205-4459-87b5-cc2d92a932cb`), guaranteeing persistent data that never vanishes on page refresh.
-
-- **Host Capabilities**: Google Sign-In with popup, potluck creation, event title/notes, master claim overview, direct link generation, and dish deletion.
-- **Guest Capabilities**: Zero-login view of the live ledger, 2-step claiming ("Claim This" modal with confirmation), "Bring Something Else" wildcard dish addition, and safe dish unclaim option.
-- **Initial Menu**: Auto-populates the 14 curated traditional Thanksgiving items upon potluck creation.
+> - **Non-Destructive Additive Strategy**: No existing dish documents in Firestore will be overwritten, modified, or deleted. Any existing claim (including claims on the original combined *"Apple Pie or Pecan Pie"* or *"Beverages"*) will remain 100% intact with the guest's name and timestamp preserved.
+> - **Confirmed Choices**:
+>   1. Existing combined claims are kept intact; **Apple Pie** and **Pecan Pie** are introduced as distinct new claimable items.
+>   2. General beverages are preserved, and **Holiday Drinks (e.g., Hot Toddies)** is added as a dedicated specialty beverage category.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **What It Does**: Allows hosts to sign in with their Google account to create a Thanksgiving potluck feast. The app generates a permanent direct link (e.g. `?potluck=<POTLUCK_ID>`) that the host texts or emails to friends. Friends open the link on their mobile phones with **no account or password**, view the live dishes, and lock in what they are bringing. All claims sync live across all screens in real time.
-- **Target Audience**: Potluck hosts who want centralized ownership and guests who want zero-login claiming on their smartphones.
-- **Key Value**: Solves data disappearance on refresh by utilizing authenticated, persistent Firestore documents while maintaining friction-free coordination for guests.
+- **What It Does**: Expands the main Thanksgiving checklist by introducing dedicated entries for **Apple Pie**, **Pecan Pie**, and **Holiday Drinks (e.g., Hot Toddies / Mulled Wine)**.
+- **Data Safety Guarantee**: When an existing feast is opened, an additive sync routine checks which new items are absent and writes only the missing items as available slots. All existing guest claims remain completely undisturbed.
+- **Target Experience**: Guests visiting the feast link immediately see the new open slots ready to be claimed alongside previously claimed dishes.
 
 ---
 
 ## 2. User Experience & Visual Design
 
-### Key User Flows
+### Updated Core Checklist
+The feast items will include:
+1. Roast Turkey / Main Protein 🦃
+2. Green Bean Casserole 🥬
+3. Traditional Stuffing / Dressing 🍞
+4. Mashed Potatoes & Gravy 🥔
+5. Cranberry Sauce 🫐
+6. Sweet Potato Casserole 🍠
+7. Fresh Dinner Rolls & Butter 🥖
+8. Macaroni & Cheese 🧀
+9. Roasted Fall Vegetables 🥕
+10. Pumpkin Pie & Whipped Cream 🎃
+11. Traditional Apple Pie or Pecan Pie *(Preserved if previously claimed)* 🥧
+12. **Apple Pie** *(New dedicated item)* 🍏🥧
+13. **Pecan Pie** *(New dedicated item)* 🍂🥧
+14. Beverages / Wine / Cider 🍷
+15. **Holiday Drinks (e.g., Hot Toddies / Mulled Wine)** *(New dedicated specialty drinks)* ☕🍹
+16. Appetizer / Charcuterie Board 🍇
+17. Ice & Disposable Tableware 🧊
 
-1. **Host Flow (Google Sign-In & Potluck Creation)**:
-   - Host clicks **"Host a Feast"** or **"Sign in with Google"** in the top navigation.
-   - A standard Google Auth popup authenticates the host.
-   - Host enters a Potluck Title (e.g., *"The Miller Friendsgiving 2026"*), date, and optional host notes.
-   - Clicking **"Create Feast"** provisions the potluck record and seeds the 14 curated Thanksgiving dishes in Firestore.
-   - Host receives a 1-click **"Copy Guest Link"** button to share with guests.
-
-2. **Guest Flow (Zero Login Direct Claiming)**:
-   - Guest opens the shared URL on their phone (`?potluck=xyz`).
-   - The screen instantly streams the live feast status and dish cards without asking for any login.
-   - Tapping **"Claim This"** opens a compact modal:
-     - Field: Guest Name / Family (required)
-     - Checkbox: *"I confirm I am bringing this dish and will feed the feast!"* (required)
-     - Action: *"Lock It In 🦃"*
-   - The row immediately switches to **Locked In** displaying `Claimed by [Guest Name]` with a warm amber badge.
-   - Confetti celebration bursts, and the claim is persisted directly to Firestore.
-
-3. **Wildcard / "Bringing Something Else?" Flow**:
-   - Guests can add family traditions or specialty beverages using the inline form at the bottom.
-   - Writes directly to the potluck's dish list and streams to all active guests.
-
-### Visual Identity & Theme
-
-- **Palette**: Deep terracotta (`#8C3A27`), burnt amber (`#C25927`), warm cream canvas (`#FAF6F0`), dark walnut text (`#2C1E16`), and sage green (`#526650`).
-- **Claimed Badge**: Soft harvest-gold pill (`#FEF3C7` with `#92400E` text) with a lock icon.
-- **Typography**: Editorial serif headers (`Fraunces`) paired with clean body typography (`Plus Jakarta Sans`).
-- **Header Elements**: Active counter pill showing `[X] of [Total] items covered` and a progress bar that fills as dishes are claimed.
-- **Host Controls**: A clean top drawer/badge showing the signed-in host profile avatar and name with a link to create/switch feasts.
+### UI & Counter Updates
+- **Progress Counter**: Dynamically computes the total active items and claimed count so the progress bar smoothly recalibrates (`[X] of [Total] items covered`).
+- **Claiming Flow**: Tapping *"Claim This"* on Apple Pie, Pecan Pie, or Holiday Drinks opens the standard 2-step confirmation modal and locks it in via real-time Firestore sync.
+- **Fridge Print Checklist**: Automatically includes the new items in the printed refrigerator coordination view.
 
 ---
 
-## 3. Key Product Decisions & Trade-Offs
+## 3. Technical Architecture & Data Strategy
 
-- **Firestore vs. Mock REST Bin / LocalStorage**:
-  - *Chosen Approach*: Firebase Firestore via the provisioned database instance.
-  - *Why*: Eliminates data loss, network rate limits, and cross-device sync failures. Firestore provides native WebSockets for instant updates across mobile devices.
-- **Host Google Auth vs. Guest Zero-Auth**:
-  - *Chosen Approach*: Require Google Auth *only* for the event creator/host; allow public unauthenticated reads and claims on the shared potluck document.
-  - *Why*: Maximizes guest participation (no one drops off because of forgotten passwords) while giving the host authenticated authority over event creation and management.
-- **Single Root `index.html` Delivery**:
-  - *Chosen Approach*: Retain self-contained architecture inside `index.html` using Firebase CDN modules and Tailwind CDN so the application runs immediately without build friction.
-
----
-
-## 4. Technical Architecture & Data Strategy
-
-### System Architecture
+### System Interaction Diagram
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    User Interface                       │
-│  ┌───────────────────────┐   ┌───────────────────────┐  │
-│  │   Host Dashboard      │   │   Guest Ledger View   │  │
-│  │ (Google Authenticated)│   │     (Zero Login)      │  │
-│  └───────────┬───────────┘   └───────────┬───────────┘  │
-└──────────────┼───────────────────────────┼──────────────┘
-               │                           │
-               ▼                           ▼
-┌─────────────────────────────────────────────────────────┐
-│              Firebase Authentication & SDK              │
-│       - GoogleAuthProvider / signInWithPopup            │
-│       - onAuthStateChanged state listener               │
-└──────────────────────────────┬──────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────┐
-│              Cloud Firestore (Real-Time)                │
-│                                                         │
-│  /potlucks/{potluckId}                                  │
-│     ├── title: "Friendsgiving 2026"                     │
-│     ├── ownerId: "uid_123"                              │
-│     ├── ownerName: "Jordan Miller"                      │
-│     ├── ownerEmail: "jordan@gmail.com"                  │
-│     └── createdAt: timestamp                            │
-│                                                         │
-│  /potlucks/{potluckId}/dishes/{dishId}                  │
-│     ├── id: "dish-1"                                    │
-│     ├── name: "Roast Turkey / Main Protein"             │
-│     ├── emoji: "🦃"                                     │
-│     ├── order: 1                                        │
-│     ├── isCustom: false                                 │
-│     ├── claimedBy: "Sarah & Mike"                       │
-│     └── claimedAt: "2026-10-19T..."                     │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│                   Active Potluck                       │
+│             /potlucks/{potluckId}/dishes               │
+├────────────────────────────────────────────────────────┤
+│ Existing Dishes (Preserved Unchanged):                 │
+│  ├── dish-1 (Roast Turkey)         -> [Claimed/Open]   │
+│  ├── ...                                               │
+│  └── custom-* (Custom Dishes)      -> [Preserved]      │
+├────────────────────────────────────────────────────────┤
+│ Additive Insertion (Only If Missing):                  │
+│  ├── dish-apple-pie       -> "Apple Pie" (Open)        │
+│  ├── dish-pecan-pie       -> "Pecan Pie" (Open)        │
+│  └── dish-holiday-drinks  -> "Holiday Drinks" (Open)   │
+└────────────────────────────────────────────────────────┘
 ```
 
-### Firestore Security Rules
+### Implementation Steps
 
-```firestore
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /potlucks/{potluckId} {
-      allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
-    }
-    match /potlucks/{potluckId}/dishes/{dishId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if request.auth != null || resource.data.isCustom == true;
-    }
-  }
-}
-```
+1. **Update `DEFAULT_ITEMS` Template (`index.html`)**:
+   - Add discrete definitions:
+     - `{ id: "dish-apple-pie", name: "Apple Pie", emoji: "🥧", order: 11, isCustom: false }`
+     - `{ id: "dish-pecan-pie", name: "Pecan Pie", emoji: "🥧", order: 12, isCustom: false }`
+     - `{ id: "dish-holiday-drinks", name: "Holiday Drinks (e.g., Hot Toddies / Mulled Wine)", emoji: "☕", order: 14, isCustom: false }`
+   - Adjust ordering so items group logically (proteins -> sides -> breads -> pies/desserts -> beverages -> supplies).
 
-### Key Sequences
+2. **Additive Firestore Sync (`ensureNewItemsExist`)**:
+   - Inside `loadPotluck()`, after fetching existing dishes from Firestore:
+   - Identify which of the new items are not yet in the active potluck's documents.
+   - For each missing item, call `setDoc(doc(db, 'potlucks', potluckId, 'dishes', item.id), item)` with `claimedBy: null`.
+   - **Crucial Rule**: Never perform a batch delete, clear, or overwrite of existing documents. Existing documents and their `claimedBy` / `claimedAt` fields are untouched.
 
-1. **Host Signs In**: `signInWithPopup(auth, provider)` sets current user.
-2. **Host Creates Potluck**: Adds `/potlucks/{potluckId}` document and batch-seeds the 14 default items into the subcollection.
-3. **Guest Views**: Reads `potluckId` from URL query string (`?potluck=...`). If none exists, either shows the host creation screen or loads the default community feast.
-4. **Live Stream**: `onSnapshot(collection(db, 'potlucks', potluckId, 'dishes'), ...)` pushes live updates to the UI within milliseconds of any claim.
-5. **Guest Claims**: `updateDoc(doc(db, 'potlucks', potluckId, 'dishes', dishId), { claimedBy, claimedAt })`.
+3. **Verify Security Rules & Blueprint**:
+   - The current `firestore.rules` already permits `create` and `update` for valid dish schemas on `/potlucks/{potluckId}/dishes/{dishId}`.
+   - The new item IDs match `isValidId` (`^[a-zA-Z0-9_\-]+$`) and adhere strictly to `isValidDish`.
+
+4. **Testing & Verification**:
+   - Verify that all previously claimed items retain their claims on browser refresh.
+   - Verify that Apple Pie, Pecan Pie, and Holiday Drinks appear as open slots and can be claimed with real-time sync.
+   - Confirm compilation and linting pass with zero errors.
