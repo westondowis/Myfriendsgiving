@@ -15,7 +15,7 @@
         "notes": { "type": "string", "maxLength": 500 },
         "createdAt": { "type": "string", "maxLength": 64 }
       },
-      "required": ["id", "title", "ownerId"]
+      "required": ["id", "title"]
     },
     "Dish": {
       "title": "Dish",
