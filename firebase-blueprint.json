@@ -11,6 +11,7 @@
         "ownerName": { "type": "string", "maxLength": 128 },
         "ownerEmail": { "type": "string", "maxLength": 128 },
         "eventDate": { "type": "string", "maxLength": 64 },
+        "location": { "type": "string", "maxLength": 256 },
         "notes": { "type": "string", "maxLength": 500 },
         "createdAt": { "type": "string", "maxLength": 64 }
       },
