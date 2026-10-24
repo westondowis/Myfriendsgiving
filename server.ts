@@ -23,16 +23,20 @@ const ai = new GoogleGenAI({
 // AI Ledger Generator endpoint
 app.post('/api/events/ai-generate-ledger', async (req, res) => {
   try {
-    const { event_theme, description, estimated_attendees } = req.body;
-    const prompt = `Generate a comprehensive categorized list of food and drink potluck items for a potluck event.
-Event Theme: ${event_theme || 'Feast'}
-Description: ${description || 'Holiday gathering'}
-Estimated Attendees: ${estimated_attendees || 10}
+    const { event_theme, description, estimated_attendees } = req.body || {};
+    const theme = String(event_theme || 'Friendsgiving Feast').trim().slice(0, 100);
+    const desc = String(description || 'Holiday gathering and potluck').trim().slice(0, 300);
+    const attendees = Math.max(1, Math.min(200, parseInt(estimated_attendees, 10) || 12));
 
-Provide items categorized into: Appetizer, Main, Side, Dessert, Beverage, Supplies.`;
+    const prompt = `Generate a comprehensive categorized list of food, drink, and supply potluck items for an event.
+Event Theme: ${theme}
+Description: ${desc}
+Estimated Attendees: ${attendees}
+
+Categorize each item strictly into one of: Appetizer, Main, Side, Dessert, Beverage, Supplies.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

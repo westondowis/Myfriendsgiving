@@ -339,51 +339,194 @@
   </main>
 
   <!-- ========================================================================= -->
-  <!-- MODAL 1: 2-STEP CLAIM MODAL (Zero-Login for Guests) -->
+  <!-- MODAL 1: MULTI-STEP GUEST CLAIM & RSVP MODAL -->
   <!-- ========================================================================= -->
   <div id="claim-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-    <div class="bg-white max-w-sm w-full p-6 rounded-2xl shadow-warmLg border border-[#E7DFD5] space-y-4">
-      <div>
-        <span class="text-[11px] uppercase font-bold tracking-wider text-terracotta block">Step into the kitchen</span>
-        <h3 class="font-serif font-bold text-lg text-walnut leading-snug mt-0.5" id="modal-dish-name">Claim Item</h3>
-        <p class="text-xs text-walnut-light mt-0.5">Lock in your commitment so everyone knows it's covered.</p>
-      </div>
-
-      <div>
-        <label for="guest-name" class="block text-xs font-bold uppercase tracking-wider text-walnut-soft mb-1">
-          Your Name / Family <span class="text-terracotta">*</span>
-        </label>
-        <input
-          id="guest-name"
-          type="text"
-          placeholder="e.g., Alex & Jordan"
-          class="w-full border border-[#D9CEBF] p-2.5 rounded-xl text-sm bg-[#FAF8F5] text-walnut focus:outline-none focus:ring-2 focus:ring-terracotta font-medium"
-        />
-      </div>
-
-      <div class="p-3 bg-terracotta-light rounded-xl border border-[#F0D5C3]">
-        <label class="flex items-start gap-2.5 cursor-pointer select-none">
-          <input id="confirm-box" type="checkbox" class="mt-0.5 h-4 w-4 rounded accent-terracotta" />
-          <span class="text-xs text-walnut leading-relaxed font-medium">
-            I confirm I am bringing this dish and will feed the feast!
+    <div class="bg-white max-w-md w-full p-6 rounded-2xl shadow-warmLg border border-[#E7DFD5] space-y-4 max-h-[90vh] overflow-y-auto">
+      
+      <!-- Progress Bar & Step Header -->
+      <div class="flex items-center justify-between border-b border-[#F0EAE1] pb-3">
+        <div class="flex items-center gap-2">
+          <span id="claim-step-indicator" class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-terracotta-light text-terracotta uppercase tracking-wider">
+            Step 1 of 3
           </span>
-        </label>
+          <span id="claim-step-title" class="text-xs font-bold text-walnut">Attendance & Plus-Ones</span>
+        </div>
+        <button onclick="window.closeClaimModal()" class="text-walnut-light hover:text-walnut p-1 cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
       </div>
 
-      <div class="flex gap-2.5 pt-1">
-        <button
-          onclick="window.closeClaimModal()"
-          class="w-1/3 py-2.5 rounded-xl border border-[#D9CEBF] text-walnut-soft text-xs font-semibold hover:bg-[#F3EDE2] transition cursor-pointer"
-        >
-          Cancel
-        </button>
-        <button
-          onclick="window.submitClaim()"
-          class="w-2/3 bg-terracotta text-white py-2.5 rounded-xl text-xs font-semibold hover:bg-terracotta-hover transition shadow-xs flex items-center justify-center gap-1 active:scale-[0.98] cursor-pointer"
-        >
-          <span>Lock It In 🦃</span>
-        </button>
+      <!-- ================= STEP 1: ATTENDANCE & PLUS-ONES ================= -->
+      <div id="claim-step-1" class="space-y-4">
+        <div>
+          <h3 class="font-serif font-bold text-lg text-walnut leading-snug">Who is joining the feast?</h3>
+          <p class="text-xs text-walnut-light mt-0.5">Let the host know who is attending with your party.</p>
+        </div>
+
+        <div>
+          <label for="guest-name" class="block text-xs font-bold uppercase tracking-wider text-walnut-soft mb-1">
+            Your Full Name <span class="text-terracotta">*</span>
+          </label>
+          <input
+            id="guest-name"
+            type="text"
+            placeholder="e.g., Alex Johnson"
+            class="w-full border border-[#D9CEBF] p-2.5 rounded-xl text-sm bg-[#FAF8F5] text-walnut focus:outline-none focus:ring-2 focus:ring-terracotta font-medium"
+          />
+        </div>
+
+        <div>
+          <label for="guest-phone" class="block text-xs font-bold uppercase tracking-wider text-walnut-soft mb-1">
+            Mobile Phone Number
+          </label>
+          <input
+            id="guest-phone"
+            type="tel"
+            placeholder="e.g., (555) 234-5678"
+            class="w-full border border-[#D9CEBF] p-2.5 rounded-xl text-sm bg-[#FAF8F5] text-walnut focus:outline-none focus:ring-2 focus:ring-terracotta font-medium"
+          />
+        </div>
+
+        <!-- Plus-Ones Section -->
+        <div class="border-t border-[#F0EAE1] pt-3">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <span class="block text-xs font-bold uppercase tracking-wider text-walnut-soft">Bringing Guests? (+Ones)</span>
+              <span class="text-[11px] text-walnut-light">Add names and mobile numbers for 1-click text invites.</span>
+            </div>
+            <button
+              type="button"
+              onclick="window.addPlusOneInput()"
+              class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-terracotta-light text-terracotta hover:bg-[#F3DDD2] text-xs font-bold transition cursor-pointer"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>+ Add Guest</span>
+            </button>
+          </div>
+
+          <!-- Dynamic Plus-Ones Container -->
+          <div id="plus-ones-list" class="space-y-2 mt-2">
+            <!-- Dynamically populated rows -->
+          </div>
+        </div>
+
+        <div class="flex gap-2.5 pt-2">
+          <button
+            type="button"
+            onclick="window.closeClaimModal()"
+            class="w-1/3 py-2.5 rounded-xl border border-[#D9CEBF] text-walnut-soft text-xs font-semibold hover:bg-[#F3EDE2] transition cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onclick="window.goToClaimStep(2)"
+            class="w-2/3 bg-terracotta text-white py-2.5 rounded-xl text-xs font-semibold hover:bg-terracotta-hover transition shadow-xs flex items-center justify-center gap-1 active:scale-[0.98] cursor-pointer"
+          >
+            <span>Next: Confirm Dish ➔</span>
+          </button>
+        </div>
       </div>
+
+      <!-- ================= STEP 2: DISH CLAIM CONFIRMATION ================= -->
+      <div id="claim-step-2" class="hidden space-y-4">
+        <div>
+          <span class="text-[11px] uppercase font-bold tracking-wider text-terracotta block">Step into the kitchen</span>
+          <h3 class="font-serif font-bold text-lg text-walnut leading-snug mt-0.5" id="modal-dish-name">Claim Item</h3>
+          <p class="text-xs text-walnut-light mt-0.5">Lock in your commitment so everyone knows it's covered.</p>
+        </div>
+
+        <!-- Party Summary -->
+        <div class="p-3 bg-[#FAF8F5] rounded-xl border border-[#E7DFD5] text-xs space-y-1">
+          <div class="flex justify-between text-walnut">
+            <span class="text-walnut-light">Primary Guest:</span>
+            <span id="step2-guest-summary" class="font-bold text-walnut"></span>
+          </div>
+          <div class="flex justify-between text-walnut">
+            <span class="text-walnut-light">Party Size:</span>
+            <span id="step2-party-size" class="font-bold text-terracotta">1 attendee</span>
+          </div>
+        </div>
+
+        <div class="p-3 bg-terracotta-light rounded-xl border border-[#F0D5C3]">
+          <label class="flex items-start gap-2.5 cursor-pointer select-none">
+            <input id="confirm-box" type="checkbox" class="mt-0.5 h-4 w-4 rounded accent-terracotta" />
+            <span class="text-xs text-walnut leading-relaxed font-medium">
+              I confirm I am bringing this dish and will feed the feast!
+            </span>
+          </label>
+        </div>
+
+        <div class="flex gap-2.5 pt-1">
+          <button
+            type="button"
+            onclick="window.goToClaimStep(1)"
+            class="w-1/3 py-2.5 rounded-xl border border-[#D9CEBF] text-walnut-soft text-xs font-semibold hover:bg-[#F3EDE2] transition cursor-pointer"
+          >
+            ← Back
+          </button>
+          <button
+            type="button"
+            onclick="window.submitClaim()"
+            class="w-2/3 bg-terracotta text-white py-2.5 rounded-xl text-xs font-semibold hover:bg-terracotta-hover transition shadow-xs flex items-center justify-center gap-1 active:scale-[0.98] cursor-pointer"
+          >
+            <span>Lock It In 🦃</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ================= STEP 3: CONFIRMATION & 1-CLICK SMS ================= -->
+      <div id="claim-step-3" class="hidden space-y-4">
+        <div class="text-center py-2">
+          <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2 text-2xl">
+            🎉
+          </div>
+          <h3 class="font-serif font-bold text-xl text-walnut">You're Locked In!</h3>
+          <p id="step3-confirmation-message" class="text-xs text-walnut-soft mt-1">
+            Thanks! We're looking forward to seeing you.
+          </p>
+        </div>
+
+        <!-- Confirmed Dish & Party Card -->
+        <div class="p-3.5 bg-sage-light rounded-xl border border-[#C5D6C4] space-y-1.5 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-sage font-medium">Your Dish:</span>
+            <span id="step3-dish-badge" class="font-bold text-walnut"></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-sage font-medium">Guest Roster:</span>
+            <span id="step3-guest-roster" class="font-bold text-walnut"></span>
+          </div>
+        </div>
+
+        <!-- 1-Click SMS Invites for Plus-Ones -->
+        <div id="sms-invite-container" class="border-t border-[#F0EAE1] pt-3 space-y-2">
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-walnut flex items-center gap-1.5">
+              <span>📱</span>
+              <span>1-Click SMS Invites for Your Guests</span>
+            </h4>
+            <p class="text-[11px] text-walnut-light mt-0.5">
+              Tap any guest below to open your messaging app with pre-filled details.
+            </p>
+          </div>
+          <div id="sms-invite-list" class="space-y-2">
+            <!-- Dynamically populated 1-click SMS buttons -->
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <button
+            type="button"
+            onclick="window.closeClaimModal()"
+            class="w-full bg-walnut text-white py-2.5 rounded-xl text-xs font-semibold hover:bg-walnut-soft transition shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+          >
+            <span>Back to Feast Ledger 🍂</span>
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -1476,18 +1619,125 @@
     // =========================================================================
     // GUEST CLAIMING & CUSTOM DISH FLOWS (Zero-Login for Guests)
     // =========================================================================
+    let currentClaimStep = 1;
+
+    window.goToClaimStep = function(step) {
+      if (step === 2) {
+        const guestName = document.getElementById("guest-name").value.trim();
+        if (!guestName) {
+          showToast("Please enter your name first!", "⚠️");
+          document.getElementById("guest-name").focus();
+          return;
+        }
+
+        // Gather plus-ones
+        const plusOnes = getEnteredPlusOnes();
+        const totalParty = 1 + plusOnes.length;
+        document.getElementById("step2-guest-summary").innerText = guestName;
+        document.getElementById("step2-party-size").innerText = `${totalParty} attendee${totalParty > 1 ? 's' : ''} (${guestName}${plusOnes.length > 0 ? ` + ${plusOnes.length} guest${plusOnes.length > 1 ? 's' : ''}` : ''})`;
+      }
+
+      currentClaimStep = step;
+      document.getElementById("claim-step-1").classList.toggle("hidden", step !== 1);
+      document.getElementById("claim-step-2").classList.toggle("hidden", step !== 2);
+      document.getElementById("claim-step-3").classList.toggle("hidden", step !== 3);
+
+      const stepIndicator = document.getElementById("claim-step-indicator");
+      const stepTitle = document.getElementById("claim-step-title");
+      if (step === 1) {
+        stepIndicator.innerText = "Step 1 of 3";
+        stepTitle.innerText = "Attendance & Plus-Ones";
+      } else if (step === 2) {
+        stepIndicator.innerText = "Step 2 of 3";
+        stepTitle.innerText = "Confirm Dish";
+      } else if (step === 3) {
+        stepIndicator.innerText = "Step 3 of 3";
+        stepTitle.innerText = "Confirmed!";
+      }
+    };
+
+    function getEnteredPlusOnes() {
+      const rows = document.querySelectorAll("#plus-ones-list .plus-one-row");
+      const list = [];
+      rows.forEach(row => {
+        const nameInput = row.querySelector(".plus-one-name");
+        const phoneInput = row.querySelector(".plus-one-phone");
+        const name = nameInput ? nameInput.value.trim() : "";
+        const phone = phoneInput ? phoneInput.value.trim() : "";
+        if (name || phone) {
+          list.push({ name: name || "Guest", phone });
+        }
+      });
+      return list;
+    }
+
+    window.addPlusOneInput = function(name = "", phone = "") {
+      const list = document.getElementById("plus-ones-list");
+      if (!list) return;
+
+      const row = document.createElement("div");
+      row.className = "plus-one-row flex items-center gap-2 bg-[#FAF8F5] p-2 rounded-xl border border-[#E7DFD5]";
+      row.innerHTML = `
+        <input
+          type="text"
+          placeholder="Guest Full Name"
+          value="${escapeHtml(name)}"
+          class="plus-one-name flex-1 border border-[#D9CEBF] p-1.5 rounded-lg text-xs bg-white text-walnut focus:outline-none focus:ring-1 focus:ring-terracotta"
+        />
+        <input
+          type="tel"
+          placeholder="Mobile # (optional)"
+          value="${escapeHtml(phone)}"
+          class="plus-one-phone w-36 border border-[#D9CEBF] p-1.5 rounded-lg text-xs bg-white text-walnut focus:outline-none focus:ring-1 focus:ring-terracotta"
+        />
+        <button
+          type="button"
+          onclick="window.removePlusOneInput(this)"
+          class="p-1 text-stone-400 hover:text-red-600 transition cursor-pointer"
+          title="Remove Guest"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      `;
+      list.appendChild(row);
+      const input = row.querySelector(".plus-one-name");
+      if (input) input.focus();
+    };
+
+    window.removePlusOneInput = function(btn) {
+      if (!btn) return;
+      const row = btn.closest(".plus-one-row");
+      if (row) {
+        row.remove();
+      }
+    };
+
     window.openClaim = function(id) {
       selectedItemId = id;
       const item = items.find(i => i.id === id);
       if (!item || item.claimedBy) return;
 
       document.getElementById("modal-dish-name").innerText = `${item.emoji || '🍽️'} ${item.name}`;
-      document.getElementById("guest-name").value = "";
+      
+      const storedName = localStorage.getItem('guest_claim_name') || "";
+      const storedPhone = localStorage.getItem('guest_claim_phone') || "";
+      document.getElementById("guest-name").value = storedName;
+      document.getElementById("guest-phone").value = storedPhone;
       document.getElementById("confirm-box").checked = false;
+
+      // Clear previous plus-ones
+      const plusList = document.getElementById("plus-ones-list");
+      if (plusList) plusList.innerHTML = "";
+
+      window.goToClaimStep(1);
       document.getElementById("claim-modal").classList.remove("hidden");
 
       setTimeout(() => {
-        document.getElementById("guest-name").focus();
+        const nameInput = document.getElementById("guest-name");
+        if (nameInput) {
+          nameInput.focus();
+          if (storedName) nameInput.select();
+        }
       }, 100);
     };
 
@@ -1498,9 +1748,11 @@
 
     window.submitClaim = async function() {
       const name = document.getElementById("guest-name").value.trim();
+      const phone = document.getElementById("guest-phone").value.trim();
       const confirmed = document.getElementById("confirm-box").checked;
 
       if (!name) {
+        window.goToClaimStep(1);
         showToast("Please enter your name!", "⚠️");
         return;
       }
@@ -1518,24 +1770,100 @@
         return;
       }
 
+      const plusOnes = getEnteredPlusOnes();
       const claimTime = new Date().toISOString();
+
+      // Cache info in local storage for convenience
+      localStorage.setItem('guest_claim_name', name);
+      if (phone) localStorage.setItem('guest_claim_phone', phone);
 
       // Optimistic visual update
       target.claimedBy = name;
       target.claimedAt = claimTime;
-      render();
-      window.closeClaimModal();
+      target.phoneNumber = phone;
+      target.plusOneCount = plusOnes.length;
+      target.plusOnes = plusOnes;
 
+      render();
       fireConfetti();
       showToast(`${name} locked in ${target.name}!`, "🎉");
+
+      // Populate Step 3 details
+      const hostMsg = (currentPotluck && currentPotluck.notes)
+        ? currentPotluck.notes
+        : "Thanks! We're looking forward to seeing you at the feast.";
+      document.getElementById("step3-confirmation-message").innerText = hostMsg;
+      document.getElementById("step3-dish-badge").innerText = `${target.emoji || '🍽️'} ${target.name}`;
+      
+      const rosterText = `${name}${plusOnes.length > 0 ? ` + ${plusOnes.map(p => p.name || 'Guest').join(', ')}` : ' (Solo)'}`;
+      document.getElementById("step3-guest-roster").innerText = rosterText;
+
+      // Populate SMS Invite Links
+      const smsContainer = document.getElementById("sms-invite-list");
+      if (smsContainer) {
+        smsContainer.innerHTML = "";
+        if (plusOnes.length === 0) {
+          smsContainer.innerHTML = `<div class="p-3 bg-[#FAF8F5] rounded-xl border border-[#E7DFD5] text-xs text-stone-500 text-center">No plus-ones added. Your RSVP is locked in!</div>`;
+        } else {
+          const eventTitle = (currentPotluck && currentPotluck.title) || 'Friendsgiving Feast';
+          const eventLocation = (currentPotluck && currentPotluck.location) || '3295 Eliot st, United States';
+          const eventDate = (currentPotluck && currentPotluck.eventDate) || 'Thursday, November 26 · 4:00 PM';
+          const eventLink = `${window.location.origin}${window.location.pathname}?potluck=${encodeURIComponent(activePotluckId)}`;
+
+          plusOnes.forEach(p => {
+            const guestDisplayName = p.name || 'friend';
+            const smsMessage = `Hey ${guestDisplayName}! I added you as my guest for ${eventTitle} at ${eventLocation} on ${eventDate}. Details: ${eventLink}`;
+            const smsHref = generateSmsUri(p.phone, smsMessage);
+
+            const smsBtn = document.createElement("a");
+            smsBtn.href = smsHref;
+            smsBtn.className = "flex items-center justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#D9CEBF] hover:border-terracotta hover:bg-[#F8ECE8] transition text-xs font-medium text-walnut group";
+            smsBtn.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-terracotta-light text-terracotta flex items-center justify-center font-bold text-xs">📱</span>
+                <div>
+                  <div class="font-bold text-walnut">${escapeHtml(guestDisplayName)}</div>
+                  <div class="text-[10px] text-stone-500">${escapeHtml(p.phone || 'Tap to text invite')}</div>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-lg bg-terracotta text-white font-semibold text-[11px] group-hover:bg-terracotta-hover transition flex items-center gap-1 shadow-2xs">
+                <span>Text Invite</span>
+                <span>➔</span>
+              </span>
+            `;
+            smsContainer.appendChild(smsBtn);
+          });
+        }
+      }
+
+      // Transition to Step 3
+      window.goToClaimStep(3);
 
       // Write directly to persistent Firestore database
       try {
         const dishRef = doc(db, 'potlucks', activePotluckId, 'dishes', target.id);
         await setDoc(dishRef, {
           claimedBy: name,
-          claimedAt: claimTime
+          claimedAt: claimTime,
+          phoneNumber: phone,
+          plusOneCount: plusOnes.length,
+          plusOnes: plusOnes
         }, { merge: true });
+
+        // Save RSVP record to rsvps subcollection
+        const rsvpId = `rsvp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+        const rsvpRef = doc(db, 'potlucks', activePotluckId, 'rsvps', rsvpId);
+        await setDoc(rsvpRef, {
+          id: rsvpId,
+          name: name,
+          phoneNumber: phone,
+          status: 'ATTENDING',
+          plusOneCount: plusOnes.length,
+          plusOnes: plusOnes,
+          claimedDishId: target.id,
+          claimedDishName: target.name,
+          createdAt: claimTime
+        });
       } catch (err) {
         console.error("Firestore claim write error:", err);
       }
