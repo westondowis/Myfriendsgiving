@@ -1,6 +1,6 @@
 {
-  "summary":  "Implementation plan for a prominent, substantial event details parchment card at the top of the feast ledger, featuring the venue address (3295 Eliot St, United States), date & time, Google Maps directions, copy address action, and inline host editing modal.",
-  "updatedAt":  "2026-10-22T20:16:36.438632179Z",
+  "summary":  "Implementation plan for MyFriendsgiving multi-event management system with AI ledger generator, multi-step RSVP onboarding, and SMS invite dispatching.",
+  "updatedAt":  "2026-10-24T20:04:04.095007083Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

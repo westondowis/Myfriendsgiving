@@ -456,6 +456,25 @@
           />
         </div>
 
+        <div class="p-3.5 bg-[#FAF4ED] rounded-xl border border-[#DECBAD] space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-walnut flex items-center gap-1.5">
+              <span>✨</span>
+              <span>AI Ledger Generator</span>
+            </span>
+            <button
+              type="button"
+              onclick="window.generateAILedger()"
+              class="px-3 py-1.5 rounded-lg bg-terracotta text-white hover:bg-terracotta-hover transition text-xs font-semibold shadow-xs cursor-pointer active:scale-95"
+            >
+              Generate Items 🤖
+            </button>
+          </div>
+          <p class="text-[11px] text-walnut-soft leading-relaxed">
+            Automatically generate customized food and drink items tailored to your event title and notes using AI.
+          </p>
+        </div>
+
         <div class="p-3 bg-[#EAF0E9] rounded-xl border border-[#C5D6C4] flex items-center gap-2.5">
           <input id="new-potluck-template" type="checkbox" checked class="h-4 w-4 rounded accent-sage" />
           <label for="new-potluck-template" class="text-xs text-walnut font-medium select-none cursor-pointer">
@@ -1221,6 +1240,45 @@
       }
     };
 
+    window.generateAILedger = async function() {
+      const title = document.getElementById("new-potluck-title").value.trim() || "Friendsgiving Feast";
+      const notes = document.getElementById("new-potluck-notes").value.trim() || "Holiday gathering";
+      
+      showToast("Generating AI food items...", "🤖");
+      try {
+        const res = await fetch("/api/events/ai-generate-ledger", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event_theme: title,
+            description: notes,
+            estimated_attendees: 12
+          })
+        });
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+          showToast(`Generated ${data.items.length} AI food items successfully!`, "✨");
+          window.aiGeneratedItems = data.items;
+        } else {
+          showToast("AI generated default items.", "ℹ️");
+        }
+      } catch (err) {
+        console.warn("AI generation notice:", err);
+        showToast("AI generation fallback used.", "ℹ️");
+      }
+    };
+
+    function generateSmsUri(phoneNumber, message) {
+      const cleanPhone = (phoneNumber || '').replace(/[^0-9+]/g, '');
+      const encodedMsg = encodeURIComponent(message || '');
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isIOS) {
+        return `sms:${cleanPhone}&body=${encodedMsg}`;
+      } else {
+        return `sms:${cleanPhone}?body=${encodedMsg}`;
+      }
+    }
+
     window.createPotluckSubmit = async function() {
       const titleInput = document.getElementById("new-potluck-title");
       const dateInput = document.getElementById("new-potluck-date");
@@ -1262,9 +1320,20 @@
         await setDoc(doc(db, 'potlucks', newPotluckId), potluckData);
         recordHostedPotluck(newPotluckId, title, eventDateVal);
 
-        // Pre-populate with all curated dishes if requested
-        if (templateCheckbox.checked) {
-          for (const item of DEFAULT_ITEMS) {
+        const itemsToSeed = (window.aiGeneratedItems && window.aiGeneratedItems.length > 0)
+          ? window.aiGeneratedItems.map((aiItem, idx) => ({
+              id: `ai-item-${idx + 1}`,
+              name: aiItem.name,
+              emoji: aiItem.category === 'Dessert' ? '🥧' : aiItem.category === 'Beverage' ? '🍷' : aiItem.category === 'Main' ? '🦃' : aiItem.category === 'Appetizer' ? '🍇' : '🍲',
+              order: idx + 1,
+              isCustom: false,
+              claimedBy: null,
+              claimedAt: null
+            }))
+          : DEFAULT_ITEMS;
+
+        if (templateCheckbox.checked || window.aiGeneratedItems) {
+          for (const item of itemsToSeed) {
             await setDoc(doc(db, 'potlucks', newPotluckId, 'dishes', item.id), {
               id: item.id,
               name: item.name,
@@ -1275,6 +1344,7 @@
               claimedAt: null
             });
           }
+          window.aiGeneratedItems = null;
         }
 
         window.closeCreatePotluckModal();

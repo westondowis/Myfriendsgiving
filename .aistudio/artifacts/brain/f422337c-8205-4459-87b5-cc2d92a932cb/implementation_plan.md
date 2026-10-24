@@ -1,107 +1,43 @@
-# Substantial Event Details & Venue Card
+# Implementation Plan - MyFriendsgiving Multi-Event & Guest Management System
 
-Elevate the event details at the top of the Friendsgiving Feast Ledger from a small, generic text string into a prominent, welcoming **parchment card**. This gives guests an immediate, unmistakable overview of the date, time, location (**3295 Eliot St, United States**), host notes, and interactive Google Maps directions, while providing hosts with an inline editing tool.
-
-## User Review & Critical Decisions
-
-> [!IMPORTANT]
-> - **Confirmed Format**: Prominent warm parchment card with clear typography, feast date/time, full venue address (**3295 Eliot St, United States**), interactive "Open in Maps" button, and 1-tap "Copy Address" utility.
-> - **Host Inline Editing**: When the host is signed in with Google, an "Edit Event Details" action button appears directly on the card to modify date, time, location, or host note in real-time Firestore sync without leaving the page.
-> - **Zero-Disruption Guarantee**: Existing claims and dish assignments remain 100% intact.
+## Overview
+Extend MyFriendsgiving into a full-cycle Event & Guest Management system featuring multi-event creation, AI-powered food ledger generation via server-side Gemini API route (`/api/events/ai-generate-ledger`), multi-step RSVP onboarding with named plus-ones (`/invite/[event_id]` or hash route), atomic guest/claim persistence, and one-click SMS invite dispatching.
 
 ---
 
-## 1. Overview & Core Concept
+## Proposed Changes
 
-- **Problem Solved**: Previously, potluck details were rendered as a small, easily-overlooked text line beneath the main title. Arriving guests couldn't easily verify the address, launch directions, or read host instructions.
-- **Solution**: A dedicated, beautifully-styled event card right below the header title. It establishes a festive, physical invitation aesthetic with high-contrast typography, clear hierarchy, and actionable buttons.
-- **Default Details**:
-  - **Venue Address**: `3295 Eliot st, United States`
-  - **Date & Time**: `Thursday, November 26 · 4:00 PM` (or the host's configured time)
-  - **Host Welcome Note**: `Hot dishes ready by 4:30 PM · Bring your appetite and holiday cheer!`
+### 1. Backend API & Server Routes (`server.ts`)
+- **`POST /api/events/ai-generate-ledger`**: Server-side endpoint using `@google/genai` to generate structured JSON arrays of food and drink items categorized by type (Appetizer, Main, Side, Dessert, Beverage, Supplies) based on event title, description, theme, and estimated attendance.
+- **`POST /api/events`**: Create event and initial ledger items in Firestore.
+- **`POST /api/rsvp`**: Atomic transaction for guest attendance, plus-ones, and ledger item claims with concurrency safeguards.
+- **`GET /api/events/[id]/manifesto`**: Retrieve event details, guest list, plus-ones, and claimed items for admin dashboard.
 
----
+### 2. Database & Data Models (`firebase-blueprint.json` & Firestore Rules)
+- **`Event`**: id, title, description, location, event_date, creator_id, max_guests_per_invitee, max_total_attendees, custom_confirmation_message, created_at.
+- **`FoodLedgerItem`**: id, event_id, name, category, quantity_needed, claimed_by_guest_id, is_custom_addition.
+- **`Guest`**: id, event_id, name, phone_number, status (`ATTENDING`, `DECLINED`), plus_one_count, created_at.
+- **`SecondaryGuest`**: id, primary_guest_id, event_id, name, phone_number.
+- **Firestore Security Rules (`firestore.rules`)**: Secure access rules for `events`, `foodLedgerItems`, `guests`, and `secondaryGuests`.
 
-## 2. User Experience & Visual Design
-
-### The Event Details Parchment Card
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│  🍁 THANKSGIVING GATHERING                                  [Host: Alex]│
-│                                                                        │
-│  📅 Thursday, November 26 · 4:00 PM                                    │
-│  📍 3295 Eliot St, United States                                       │
-│                                                                        │
-│  💬 "Hot dishes ready by 4:30 PM. BYOB & bring your holiday cheer!"    │
-│                                                                        │
-│  [ 🗺️ Open in Google Maps ]   [ 📋 Copy Address ]   [ ✏️ Edit (Host) ]  │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-### Visual Specifications
-- **Container**: Off-white parchment background (`#FFFFFF` on `#FAF6F0` canvas) with a warm border (`#E5DACD`), soft shadow (`shadow-warm`), and rounded geometry (`rounded-2xl`).
-- **Typography**: 
-  - Eyebrow header in warm terracotta serif with a festive leaf accent.
-  - Primary date and address displayed in legible, high-contrast walnut slate (`#2C1E16`) with clear iconography.
-  - Host message set in a warm italicized quote box with a subtle amber border.
-- **Interactive Action Bar**:
-  - **Open in Google Maps**: Direct link opening `https://www.google.com/maps/search/?api=1&query=3295+Eliot+st+United+States` in a new tab.
-  - **Copy Address**: One-click clipboard copy with an instant confirmation toast (`"Address copied to clipboard!"`).
-  - **Host Edit Details**: Appears only for the authenticated event host, triggering a modal to update title, date, location address, and notes.
+### 3. Frontend UI Components & Views (`index.html` / `src/`)
+- **Event Creator & AI Ledger Generator Wizard**:
+  - Modal/View for creating events with custom capacity limits, custom post-RSVP confirmation messages, and AI Ledger generator button.
+- **Admin Dashboard / Attendance Manifesto**:
+  - Central tabular view showing confirmed headcounts, guest details, plus-ones, and claimed items with clipboard export.
+- **Public Multi-Step RSVP & Claiming Flow (`/invite/[event_id]`)**:
+  - Step 1: Attendance & Plus-One Details with dynamic named inputs.
+  - Step 2: Food Feast Ledger selection & claiming or custom addition.
+  - Step 3: Confirmation card with custom host message and **One-Click Native SMS Invite Trigger** (`sms:[phone]?body=...`) for each named plus-one.
 
 ---
 
-## 3. Technical Architecture & Data Strategy
+## Verification Plan
 
-### System Flow Diagram
+### Automated Tests & Linter
+- Run `npm run build` and `npm run lint` to verify TypeScript types and bundle compilation.
+- Verify server routes start successfully and respond correctly to health and API probes.
 
-```
-┌────────────────────────────┐
-│      Firestore Potluck     │
-│   /potlucks/{potluckId}    │
-│  - eventDate               │
-│  - notes (or location)     │
-│  - title                   │
-└──────────────┬─────────────┘
-               │ Real-Time Listener (onSnapshot)
-               ▼
-┌────────────────────────────┐
-│    Event Details Card      │
-│  - Render Date & Time      │
-│  - Render 3295 Eliot St    │
-│  - Google Maps Action Link │
-│  - Copy Address Clipboard  │
-└──────────────┬─────────────┘
-               │ Host clicks "Edit Details"
-               ▼
-┌────────────────────────────┐
-│    Edit Details Modal      │
-│  - Updates Firestore doc   │
-│  - Instant Live Sync       │
-└────────────────────────────┘
-```
-
-### Implementation Steps
-
-1. **Card Component in `index.html`**:
-   - Replace the narrow `#potluck-event-details` div with a substantial, styled `#event-details-card` section.
-   - Include date, address, note fields, and action buttons (`openMaps`, `copyAddress`, `openEditModal`).
-
-2. **Inline Host Edit Modal**:
-   - Add a lightweight modal allowing the host to update the event date, venue address, and host message.
-   - On submit, call `setDoc(doc(db, 'potlucks', activePotluckId), { ... }, { merge: true })` to persist immediately to Firestore.
-
-3. **Fallback & Default Value Handling**:
-   - If a potluck document lacks a custom location, seamlessly default to `3295 Eliot st, United States`.
-   - Update printable fridge checklist to also prominently feature the address and date at the top.
-
-4. **Security & Validation**:
-   - Update `firebase-blueprint.json` and `firestore.rules` if needed to ensure `location` or `notes` fields validate smoothly with `isValidPotluck`.
-   - Ensure non-hosts cannot overwrite the metadata document while allowing guests to read and use the map link.
-
-5. **Testing & Verification**:
-   - Verify layout responsiveness across desktop and mobile screens.
-   - Verify Google Maps link correctly resolves to `3295 Eliot st, United States`.
-   - Verify clipboard copy works seamlessly and displays toast.
-   - Verify compilation with `compile_applet` and linting with `lint_applet`.
+### Manual Verification
+- Create an event using the Event Builder and test AI Ledger Generation.
+- Simulate guest RSVP through the multi-step onboarding and verify real-time Firestore sync and SMS link generation.
