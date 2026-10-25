@@ -1,30 +1,50 @@
 import React, { useState } from 'react';
+import { FeastMeta } from '../types';
+import { MapPin, Calendar } from 'lucide-react';
 
-// Use the generated image path
 const HERO_IMAGE_URL = '/src/assets/images/feast_table_banner_1792338216037.jpg';
 
-export const HeroSection: React.FC = () => {
+interface HeroSectionProps {
+  meta?: FeastMeta;
+}
+
+export const HeroSection: React.FC<HeroSectionProps> = ({ meta }) => {
   const [imageError, setImageError] = useState(false);
 
+  const title = meta?.title || 'Friendsgiving: The Feast Ledger';
+  const subtitle =
+    meta?.notes ||
+    "Claim what you're bringing so we don't end up with eight tubs of mashed potatoes and no pie. No passwords or app downloads needed.";
+  const dateText = meta?.eventDate || 'Thursday, November 26 · 4:00 PM';
+  const locationText = meta?.location || '3295 Eliot st, United States';
+
   return (
-    <section className="relative pt-6 pb-4 sm:pt-10 sm:pb-6 text-center no-print">
+    <section className="relative pt-6 pb-4 sm:pt-8 sm:pb-6 text-center no-print">
       {/* Decorative Autumn Header Tagline */}
       <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#F4EDE2] border border-[#E5DAC8] text-[#C25927] text-xs font-semibold tracking-wide uppercase mb-3.5 shadow-2xs">
         <span role="img" aria-label="Autumn leaves">🍁</span>
-        <span>Friendsgiving 2026 · Zero Login Potluck</span>
+        <span>{dateText}</span>
       </div>
 
       <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-[#2C1E16] tracking-tight leading-[1.15] max-w-2xl mx-auto px-2">
-        Friendsgiving: The Feast Ledger
+        {title}
       </h1>
 
-      <p className="mt-3 text-[#4A3B32] max-w-xl mx-auto text-sm sm:text-base leading-relaxed px-4">
-        Claim what you're bringing so we don't end up with eight tubs of mashed potatoes and no pie. No passwords or app downloads needed.
+      <p className="mt-2.5 text-[#4A3B32] max-w-xl mx-auto text-sm sm:text-base leading-relaxed px-4">
+        {subtitle}
       </p>
 
+      {/* Venue pill */}
+      {locationText && (
+        <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-[#705F55] bg-white/70 px-3 py-1 rounded-full border border-[#E8DEC8]">
+          <MapPin className="w-3.5 h-3.5 text-[#C25927]" />
+          <span>{locationText}</span>
+        </div>
+      )}
+
       {/* Hero Visual Accent Banner */}
-      <div className="mt-6 max-w-4xl mx-auto px-4">
-        <div className="relative rounded-2xl overflow-hidden shadow-sm border border-[#E8DEC8] h-36 sm:h-52 bg-[#F0E6D8] flex items-center justify-center">
+      <div className="mt-5 max-w-4xl mx-auto px-4">
+        <div className="relative rounded-2xl overflow-hidden shadow-sm border border-[#E8DEC8] h-32 sm:h-48 bg-[#F0E6D8] flex items-center justify-center">
           {!imageError ? (
             <img
               src={HERO_IMAGE_URL}
@@ -40,7 +60,7 @@ export const HeroSection: React.FC = () => {
             </div>
           )}
 
-          {/* Subtle gradient scrim at bottom to blend gracefully */}
+          {/* Scrim */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#2C1E16]/40 via-transparent to-transparent pointer-events-none" />
 
           <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-white text-xs drop-shadow-sm font-medium">

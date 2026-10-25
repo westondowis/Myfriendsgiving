@@ -1,12 +1,13 @@
 import React from 'react';
 import { DishItem } from '../types';
-import { Lock, Check, HelpCircle, Trash2, Clock } from 'lucide-react';
+import { Lock, Check, Trash2, Clock } from 'lucide-react';
 
 interface DishCardProps {
   dish: DishItem;
   onOpenClaim: (dish: DishItem) => void;
   onRequestUnclaim: (dish: DishItem) => void;
   onRemoveCustom?: (id: string) => void;
+  isHost?: boolean;
 }
 
 export const DishCard: React.FC<DishCardProps> = ({
@@ -14,6 +15,7 @@ export const DishCard: React.FC<DishCardProps> = ({
   onOpenClaim,
   onRequestUnclaim,
   onRemoveCustom,
+  isHost = false,
 }) => {
   const isClaimed = !!dish.claimedBy;
 
@@ -100,19 +102,27 @@ export const DishCard: React.FC<DishCardProps> = ({
           </span>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onRequestUnclaim(dish)}
-              className="text-[#705F55] hover:text-[#B91C1C] underline underline-offset-2 transition-colors py-1 px-1.5 min-h-[32px] flex items-center text-xs"
-              title="Click if you need to release this dish claim"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRequestUnclaim(dish);
+              }}
+              className="relative z-10 text-[#705F55] hover:text-[#B91C1C] underline underline-offset-2 transition-colors px-2 min-h-[40px] flex items-center text-xs font-semibold cursor-pointer active:scale-95 touch-manipulation"
+              title={isHost ? 'Host Override: Tap to release dish immediately' : 'Click if you need to release this dish claim'}
             >
-              Need to swap?
+              {isHost ? 'Release (Host)' : 'Need to swap?'}
             </button>
             {dish.category === 'custom' && onRemoveCustom && (
               <button
-                onClick={() => onRemoveCustom(dish.id)}
-                className="text-stone-400 hover:text-red-600 p-1 rounded-md transition-colors"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveCustom(dish.id);
+                }}
+                className="relative z-10 text-stone-400 hover:text-red-600 p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg transition-colors cursor-pointer active:scale-95 touch-manipulation"
                 title="Delete this custom entry"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -150,6 +160,7 @@ export const DishCard: React.FC<DishCardProps> = ({
           Open slot
         </span>
         <button
+          type="button"
           onClick={() => onOpenClaim(dish)}
           className="min-h-[44px] px-4 py-2 rounded-xl bg-[#C25927] hover:bg-[#A6471B] text-white text-xs sm:text-sm font-semibold transition shadow-xs flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
         >

@@ -17,6 +17,7 @@ export interface DishItem {
   claimedAt: string | null; // ISO Date string
   notes?: string;
   dietary?: string;
+  order?: number;
 }
 
 export type FilterStatus = 'all' | 'needed' | 'claimed';
@@ -30,3 +31,20 @@ export interface FeastStats {
   neededTotal: number;
   percentCore: number;
 }
+
+export interface FeastMeta {
+  id: string;
+  title: string;
+  eventDate?: string;
+  location?: string;
+  notes?: string;
+  hostName?: string;
+  createdAt?: string;
+}
+
+export interface HostUser {
+  name: string;
+  email?: string;
+  uid?: string;
+}
+
