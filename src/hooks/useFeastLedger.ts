@@ -1,19 +1,88 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DishItem, CuisineCategory, FeastStats, FeastMeta } from '../types';
 import { DEFAULT_BASE_ITEMS } from '../data/defaultDishes';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import {
   doc,
   collection,
   onSnapshot,
   setDoc,
+  updateDoc,
   deleteDoc,
+  getDocFromServer,
 } from 'firebase/firestore';
+
+// Error handling conforming to Firebase Integration guidelines
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+      emailVerified: auth?.currentUser?.emailVerified,
+      isAnonymous: auth?.currentUser?.isAnonymous,
+      tenantId: auth?.currentUser?.tenantId,
+      providerInfo:
+        auth?.currentUser?.providerData?.map((provider) => ({
+          providerId: provider.providerId,
+          email: provider.email,
+        })) || [],
+    },
+    operationType,
+    path,
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+// Infer cuisine category helper when documents don't have explicit cuisineCategory
+function inferCuisineCategory(name: string, emoji?: string): CuisineCategory {
+  const n = name.toLowerCase();
+  if (n.includes('turkey') || n.includes('main') || n.includes('meat') || n.includes('protein') || n.includes('ham') || n.includes('beef')) return 'mains';
+  if (n.includes('pie') || n.includes('cake') || n.includes('cookie') || n.includes('dessert') || (n.includes('sweet') && !n.includes('potato'))) return 'desserts';
+  if (n.includes('wine') || n.includes('cider') || n.includes('drink') || n.includes('cocktail') || n.includes('beverage') || n.includes('toddy') || n.includes('bourbon') || n.includes('fashion')) return 'drinks';
+  if (n.includes('roll') || n.includes('bread') || n.includes('biscuit') || n.includes('cornbread')) return 'breads';
+  if (n.includes('appetizer') || n.includes('charcuterie') || n.includes('cheese board') || n.includes('dip')) return 'appetizers';
+  if (n.includes('tableware') || n.includes('ice') || n.includes('cup') || n.includes('plate') || n.includes('napkin') || n.includes('supplies')) return 'supplies';
+  return 'sides';
+}
 
 function getPotluckIdFromUrl(): string {
   if (typeof window === 'undefined') return 'friendsgiving-2026';
-  const params = new URLSearchParams(window.location.search);
-  return params.get('potluck') || 'friendsgiving-2026';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const potluck = params.get('potluck');
+    if (potluck && potluck.trim()) {
+      return potluck.trim();
+    }
+  } catch {}
+  return 'friendsgiving-2026';
 }
 
 function getCachedDishes(potluckId: string): DishItem[] {
@@ -27,7 +96,7 @@ function getCachedDishes(potluckId: string): DishItem[] {
       }
     }
   } catch {}
-  return DEFAULT_BASE_ITEMS.map((d) => ({ ...d }));
+  return DEFAULT_BASE_ITEMS.map((d, idx) => ({ ...d, order: idx + 1 }));
 }
 
 function getCachedMeta(potluckId: string): FeastMeta {
@@ -44,9 +113,10 @@ function getCachedMeta(potluckId: string): FeastMeta {
   return {
     id: potluckId,
     title: potluckId === 'friendsgiving-2026' ? 'Friendsgiving Feast Ledger' : 'Friendsgiving Gathering',
-    eventDate: 'Thursday, November 26 · 4:00 PM',
-    location: '3295 Eliot st, United States',
-    notes: 'Hot dishes ready by 4:30 PM. BYOB & bring your holiday cheer!',
+    eventDate: 'Saturday, November 7th',
+    location: '770 S Hudson St, Denver, CO 80246',
+    notes: 'I will begin cooking before 6 and plan to have the food ready no later than 7:00!',
+    hostName: 'Weston Dowis',
     createdAt: new Date().toISOString(),
   };
 }
@@ -64,7 +134,7 @@ export function useFeastLedger() {
   }>({
     connected: !!db,
     mode: 'firebase',
-    label: db ? 'Firestore Live Synced' : 'Offline Mode',
+    label: db ? 'Connecting to Firestore...' : 'Offline Mode',
     lastSynced: new Date(),
   });
 
@@ -83,10 +153,26 @@ export function useFeastLedger() {
     return () => window.removeEventListener('popstate', handleUrlChange);
   }, [activePotluckId]);
 
+  // Initial connection test to Firestore
+  useEffect(() => {
+    if (!db) return;
+    async function testConnection() {
+      try {
+        await getDocFromServer(doc(db!, 'potlucks', activePotluckId));
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('the client is offline')) {
+          console.error('Please check your Firebase configuration.');
+        }
+      }
+    }
+    testConnection();
+  }, [activePotluckId]);
+
   // Real-time Firestore listener for Feast Metadata: /potlucks/{activePotluckId}
   useEffect(() => {
     if (!db) return;
 
+    const potluckPath = `potlucks/${activePotluckId}`;
     try {
       const potluckRef = doc(db, 'potlucks', activePotluckId);
 
@@ -98,30 +184,21 @@ export function useFeastLedger() {
             const meta: FeastMeta = {
               id: activePotluckId,
               title: data.title || (activePotluckId === 'friendsgiving-2026' ? 'Friendsgiving Feast Ledger' : 'Friendsgiving Gathering'),
-              eventDate: data.eventDate || 'Thursday, November 26 · 4:00 PM',
-              location: data.location || '3295 Eliot st, United States',
-              notes: data.notes || 'Hot dishes ready by 4:30 PM. BYOB & bring your holiday cheer!',
-              hostName: data.ownerName || data.hostName,
+              eventDate: data.eventDate || 'Saturday, November 7th',
+              location: data.location || '770 S Hudson St, Denver, CO 80246',
+              notes: data.notes || 'I will begin cooking before 6 and plan to have the food ready no later than 7:00!',
+              hostName: data.ownerName || data.hostName || 'Weston Dowis',
+              hostEmail: data.ownerEmail,
               createdAt: data.createdAt,
             };
             setFeastMeta(meta);
             try {
               localStorage.setItem(`friendsgiving_potluck_${activePotluckId}_meta`, JSON.stringify(meta));
             } catch {}
-          } else if (activePotluckId === 'friendsgiving-2026') {
-            const initialMeta = {
-              id: 'friendsgiving-2026',
-              title: 'Friendsgiving Feast Ledger',
-              eventDate: 'Thursday, November 26 · 4:00 PM',
-              location: '3295 Eliot st, United States',
-              notes: 'Hot dishes ready by 4:30 PM. BYOB & bring your holiday cheer!',
-              createdAt: new Date().toISOString(),
-            };
-            setDoc(potluckRef, initialMeta, { merge: true }).catch(() => {});
           }
         },
         (error) => {
-          console.warn('Firestore metadata notice:', error);
+          handleFirestoreError(error, OperationType.GET, potluckPath);
         }
       );
 
@@ -132,74 +209,71 @@ export function useFeastLedger() {
   }, [activePotluckId]);
 
   // Real-time Firestore listener for Dishes: /potlucks/{activePotluckId}/dishes
+  // Directly loads documents from production Firestore preserving all claims (Grant Payne, Weston & Em, etc.)
   useEffect(() => {
     if (!db) return;
 
+    const dishesPath = `potlucks/${activePotluckId}/dishes`;
     try {
       const dishesColRef = collection(db, 'potlucks', activePotluckId, 'dishes');
 
       const unsubscribeDishes = onSnapshot(
         dishesColRef,
-        async (querySnapshot) => {
-          // Non-destructive: if collection has items, load them and preserve all existing claims
-          if (!querySnapshot.empty) {
-            const loadedDishes: DishItem[] = [];
+        (querySnapshot) => {
+          const loadedDishes: DishItem[] = [];
 
-            querySnapshot.forEach((docSnap) => {
-              const data = docSnap.data();
-              loadedDishes.push({
-                id: docSnap.id,
-                name: data.name || 'Dish Item',
-                category: data.isCustom ? 'custom' : (data.category || 'core'),
-                cuisineCategory: (data.cuisineCategory as CuisineCategory) || 'sides',
-                emoji: data.emoji || (data.isCustom ? '🥧' : '🥘'),
-                claimedBy: data.claimedBy || null,
-                claimedAt: data.claimedAt || null,
-                notes: data.notes || '',
-                dietary: data.dietary || undefined,
-                order: data.order ?? 50,
-              });
+          querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const name = data.name || 'Dish Item';
+            const isCustom = data.isCustom === true;
+            const category = (data.category as 'core' | 'custom') || (isCustom ? 'custom' : 'core');
+
+            // Find matching default item to pull fallback emoji or cuisine category if missing
+            const defaultMatch = DEFAULT_BASE_ITEMS.find(
+              (d) => d.id === docSnap.id || d.name.toLowerCase().trim() === name.toLowerCase().trim()
+            );
+
+            loadedDishes.push({
+              id: docSnap.id,
+              name,
+              category,
+              cuisineCategory:
+                (data.cuisineCategory as CuisineCategory) ||
+                defaultMatch?.cuisineCategory ||
+                inferCuisineCategory(name, data.emoji),
+              emoji: data.emoji || defaultMatch?.emoji || (isCustom ? '🥧' : '🥘'),
+              claimedBy: data.claimedBy || null,
+              claimedAt: data.claimedAt || null,
+              notes: data.notes || '',
+              dietary: data.dietary || undefined,
+              order: typeof data.order === 'number' ? data.order : (defaultMatch?.order ?? (isCustom ? 99 : 50)),
             });
+          });
 
-            // Sort by order field
-            loadedDishes.sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
+          // Sort dishes: core items first by order, then custom dishes
+          loadedDishes.sort((a, b) => {
+            if (a.category === 'core' && b.category !== 'core') return -1;
+            if (a.category !== 'core' && b.category === 'core') return 1;
+            return (a.order ?? 50) - (b.order ?? 50);
+          });
 
+          // Set dishes state directly from Firestore documents (do NOT overwrite with blank localStorage defaults)
+          if (loadedDishes.length > 0) {
             setDishes(loadedDishes);
             try {
               localStorage.setItem(`friendsgiving_potluck_${activePotluckId}_dishes`, JSON.stringify(loadedDishes));
             } catch {}
-
-            setSyncStatus({
-              connected: true,
-              mode: 'firebase',
-              label: 'Firestore Real-Time Sync Active',
-              lastSynced: new Date(),
-            });
-          } else {
-            // Only seed defaults if the Firestore collection is completely empty
-            for (const item of DEFAULT_BASE_ITEMS) {
-              const dishDocRef = doc(db!, 'potlucks', activePotluckId, 'dishes', item.id);
-              await setDoc(dishDocRef, {
-                id: item.id,
-                name: item.name,
-                emoji: item.emoji,
-                order: item.order ?? 50,
-                isCustom: false,
-                category: item.category,
-                cuisineCategory: item.cuisineCategory,
-                claimedBy: null,
-                claimedAt: null,
-              });
-            }
           }
+
+          setSyncStatus({
+            connected: true,
+            mode: 'firebase',
+            label: 'Firestore Live Synced',
+            lastSynced: new Date(),
+          });
         },
         (error) => {
-          console.warn('Firestore dishes notice:', error);
-          setSyncStatus((prev) => ({
-            ...prev,
-            connected: false,
-            label: 'Firestore Reconnecting...',
-          }));
+          handleFirestoreError(error, OperationType.LIST, dishesPath);
         }
       );
 
@@ -209,7 +283,7 @@ export function useFeastLedger() {
     }
   }, [activePotluckId]);
 
-  // Create a new feast: writes document to /potlucks/{newId} in Firestore
+  // Create a new feast: writes document to /potlucks/{newId} and seeds dishes subcollection in Firestore
   const createFeast = useCallback(
     async (meta: { title: string; eventDate?: string; location?: string; notes?: string }) => {
       const cleanSlug = meta.title
@@ -229,8 +303,9 @@ export function useFeastLedger() {
         createdAt: new Date().toISOString(),
       };
 
-      const defaultDishes = DEFAULT_BASE_ITEMS.map((d) => ({
+      const defaultDishes = DEFAULT_BASE_ITEMS.map((d, idx) => ({
         ...d,
+        order: idx + 1,
         claimedBy: null,
         claimedAt: null,
       }));
@@ -241,11 +316,11 @@ export function useFeastLedger() {
         localStorage.setItem(`friendsgiving_potluck_${newPotluckId}_dishes`, JSON.stringify(defaultDishes));
       } catch {}
 
-      // Write to Firestore if connected
+      // Write feast and seed dishes subcollection in Firestore
       if (db) {
         try {
           await setDoc(doc(db, 'potlucks', newPotluckId), newMeta);
-          for (const item of DEFAULT_BASE_ITEMS) {
+          for (const item of defaultDishes) {
             await setDoc(doc(db, 'potlucks', newPotluckId, 'dishes', item.id), {
               id: item.id,
               name: item.name,
@@ -259,7 +334,7 @@ export function useFeastLedger() {
             });
           }
         } catch (err) {
-          console.warn('Notice writing new feast to Firestore:', err);
+          handleFirestoreError(err, OperationType.CREATE, `potlucks/${newPotluckId}`);
         }
       }
 
@@ -281,7 +356,7 @@ export function useFeastLedger() {
     async (id: string, guestName: string, notes?: string, dietary?: string) => {
       const claimTime = new Date().toISOString();
 
-      // Optimistic update
+      // Optimistic visual update
       setDishes((prev) =>
         prev.map((d) =>
           d.id === id
@@ -298,6 +373,7 @@ export function useFeastLedger() {
 
       // Write directly to Firestore
       if (db) {
+        const dishPath = `potlucks/${activePotluckId}/dishes/${id}`;
         try {
           const dishRef = doc(db, 'potlucks', activePotluckId, 'dishes', id);
           await setDoc(
@@ -311,17 +387,17 @@ export function useFeastLedger() {
             { merge: true }
           );
         } catch (err) {
-          console.error('Firestore claim write error:', err);
+          handleFirestoreError(err, OperationType.UPDATE, dishPath);
         }
       }
     },
     [activePotluckId]
   );
 
-  // Unclaim a dish directly in Firestore
+  // Unclaim / Swap action: calls updateDoc on Firestore setting { claimedBy: null, claimedAt: null }
   const unclaimDish = useCallback(
     async (id: string) => {
-      // Optimistic visual update
+      // Optimistic visual update immediately so user sees the change
       setDishes((prev) =>
         prev.map((d) =>
           d.id === id
@@ -336,65 +412,91 @@ export function useFeastLedger() {
         )
       );
 
-      // Write directly to Firestore
+      // Write directly to Firestore using updateDoc
       if (db) {
+        const dishPath = `potlucks/${activePotluckId}/dishes/${id}`;
         try {
           const dishRef = doc(db, 'potlucks', activePotluckId, 'dishes', id);
-          await setDoc(
-            dishRef,
-            {
-              claimedBy: null,
-              claimedAt: null,
-              notes: '',
-              dietary: null,
-            },
-            { merge: true }
-          );
+          await updateDoc(dishRef, {
+            claimedBy: null,
+            claimedAt: null,
+          });
         } catch (err) {
-          console.error('Firestore unclaim write error:', err);
+          handleFirestoreError(err, OperationType.UPDATE, dishPath);
         }
       }
     },
     [activePotluckId]
   );
 
-  // Add custom dish ("Bring Something Else / Wildcard") directly to Firestore
+  // Add custom dish directly to Firestore: /potlucks/{activePotluckId}/dishes/{customId}
   const addCustomDish = useCallback(
-    async (params: {
-      name: string;
-      guestName: string;
-      notes?: string;
-      cuisineCategory?: CuisineCategory;
-      emoji?: string;
-      dietary?: string;
-    }) => {
-      const customId = `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    async (
+      input:
+        | {
+            name: string;
+            guestName: string;
+            notes?: string;
+            cuisineCategory: CuisineCategory;
+            emoji?: string;
+            dietary?: string;
+          }
+        | string,
+      legacyClaimedBy?: string,
+      legacyCuisineCategory: CuisineCategory = 'sides',
+      legacyNotes?: string,
+      legacyDietary?: string
+    ) => {
+      let cleanName = '';
+      let claimedBy = '';
+      let cuisineCategory: CuisineCategory = 'sides';
+      let emoji = '🥧';
+      let notes = '';
+      let dietary: string | undefined = undefined;
+
+      if (typeof input === 'object' && input !== null) {
+        cleanName = input.name.trim();
+        claimedBy = input.guestName.trim();
+        cuisineCategory = input.cuisineCategory || 'sides';
+        emoji = input.emoji || '🥧';
+        notes = input.notes?.trim() || '';
+        dietary = input.dietary?.trim() || undefined;
+      } else {
+        cleanName = String(input || '').trim();
+        claimedBy = String(legacyClaimedBy || '').trim();
+        cuisineCategory = legacyCuisineCategory;
+        notes = legacyNotes?.trim() || '';
+        dietary = legacyDietary?.trim() || undefined;
+      }
+
+      const customId = `custom-${Date.now()}`;
+      const claimTime = new Date().toISOString();
+
       const newDishItem: DishItem = {
         id: customId,
-        name: params.name.trim(),
+        name: cleanName,
         category: 'custom',
-        cuisineCategory: params.cuisineCategory || 'sides',
-        emoji: params.emoji || '🥧',
-        claimedBy: params.guestName.trim(),
-        claimedAt: new Date().toISOString(),
-        notes: params.notes?.trim() || '',
-        dietary: params.dietary?.trim() || undefined,
+        cuisineCategory,
+        emoji,
+        claimedBy: claimedBy || null,
+        claimedAt: claimedBy ? claimTime : null,
+        notes,
+        dietary,
         order: 99,
       };
 
-      // Optimistic update
       setDishes((prev) => [...prev, newDishItem]);
 
-      // Write to Firestore
       if (db) {
+        const dishPath = `potlucks/${activePotluckId}/dishes/${customId}`;
         try {
           const dishRef = doc(db, 'potlucks', activePotluckId, 'dishes', customId);
           await setDoc(dishRef, {
             id: customId,
-            name: newDishItem.name,
+            name: cleanName,
             category: 'custom',
-            cuisineCategory: newDishItem.cuisineCategory,
-            emoji: newDishItem.emoji,
+            cuisineCategory,
+            emoji,
             isCustom: true,
             order: 99,
             claimedBy: newDishItem.claimedBy,
@@ -403,7 +505,7 @@ export function useFeastLedger() {
             dietary: newDishItem.dietary || null,
           });
         } catch (err) {
-          console.error('Firestore custom dish error:', err);
+          handleFirestoreError(err, OperationType.CREATE, dishPath);
         }
       }
 
@@ -418,11 +520,12 @@ export function useFeastLedger() {
       setDishes((prev) => prev.filter((d) => d.id !== id));
 
       if (db) {
+        const dishPath = `potlucks/${activePotluckId}/dishes/${id}`;
         try {
           const dishRef = doc(db, 'potlucks', activePotluckId, 'dishes', id);
           await deleteDoc(dishRef);
         } catch (err) {
-          console.error('Firestore delete custom dish error:', err);
+          handleFirestoreError(err, OperationType.DELETE, dishPath);
         }
       }
     },
@@ -431,23 +534,17 @@ export function useFeastLedger() {
 
   // Reset to default staples
   const resetToDefaults = useCallback(async () => {
-    const defaults = DEFAULT_BASE_ITEMS.map((item) => ({ ...item }));
+    const defaults = DEFAULT_BASE_ITEMS.map((item, idx) => ({ ...item, order: idx + 1 }));
     setDishes(defaults);
 
     if (db) {
       try {
         for (const item of defaults) {
           const dishRef = doc(db, 'potlucks', activePotluckId, 'dishes', item.id);
-          await setDoc(
-            dishRef,
-            {
-              claimedBy: null,
-              claimedAt: null,
-              notes: '',
-              dietary: null,
-            },
-            { merge: true }
-          );
+          await updateDoc(dishRef, {
+            claimedBy: null,
+            claimedAt: null,
+          });
         }
       } catch (err) {
         console.warn('Reset defaults notice:', err);
@@ -473,19 +570,26 @@ export function useFeastLedger() {
     };
   }, [dishes]);
 
+  const firebaseUrl = 'ai-studio-feastledger-f422337c-8205-4459-87b5-cc2d92a932cb';
+  const updateFirebaseConfig = useCallback((url: string) => {
+    try {
+      localStorage.setItem('friendsgiving_firebase_url', url);
+    } catch {}
+  }, []);
+
   return {
-    activePotluckId,
-    feastMeta,
     dishes,
+    feastMeta,
     stats,
     syncStatus,
-    firebaseUrl: '',
-    createFeast,
+    activePotluckId,
+    firebaseUrl,
+    updateFirebaseConfig,
     claimDish,
     unclaimDish,
     addCustomDish,
     removeCustomDish,
+    createFeast,
     resetToDefaults,
-    updateFirebaseConfig: () => {},
   };
 }

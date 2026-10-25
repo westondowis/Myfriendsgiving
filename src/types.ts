@@ -39,6 +39,7 @@ export interface FeastMeta {
   location?: string;
   notes?: string;
   hostName?: string;
+  hostEmail?: string;
   createdAt?: string;
 }
 
