@@ -17,7 +17,7 @@ import { ConfigModal } from './components/ConfigModal';
 import { CreateFeastModal } from './components/CreateFeastModal';
 import { PrintView } from './components/PrintView';
 import { Toast } from './components/Toast';
-import { Plus, SearchX, ChefHat, AlertTriangle, Trash2, RotateCcw } from 'lucide-react';
+import { Plus, SearchX, ChefHat } from 'lucide-react';
 
 export default function App() {
   const {
@@ -63,10 +63,6 @@ export default function App() {
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [isCreateFeastOpen, setIsCreateFeastOpen] = useState(false);
-
-  // In-App Confirmation Candidates (Replaces blocked window.confirm)
-  const [unclaimCandidate, setUnclaimCandidate] = useState<DishItem | null>(null);
-  const [deleteCandidate, setDeleteCandidate] = useState<DishItem | null>(null);
 
   // Toast
   const [toastInfo, setToastInfo] = useState<{ message: string; icon: string; visible: boolean }>({
@@ -133,31 +129,17 @@ export default function App() {
     showToast(`${guestName} is bringing ${dish?.name || 'this dish'}!`, '🎉');
   };
 
+  // Direct, clean unclaim without window.confirm blocking
   const handleRequestUnclaim = (dish: DishItem) => {
-    // Host Override: If host is logged in, release immediately with 1 tap!
-    if (currentUser) {
-      unclaimDish(dish.id);
-      showToast(`Released "${dish.name}" (Host override)`, '🔄');
-      return;
-    }
-
-    // Guest flow: open in-app confirmation modal (eliminates blocked window.confirm)
-    setUnclaimCandidate(dish);
+    unclaimDish(dish.id);
+    showToast(`"${dish.name}" is now open for claiming!`, '✨');
   };
 
+  // Direct, clean remove custom dish
   const handleRemoveCustom = (id: string) => {
     const dish = dishes.find((d) => d.id === id);
-    if (!dish) return;
-
-    // Host Override: If host is logged in, delete immediately with 1 tap!
-    if (currentUser) {
-      removeCustomDish(id);
-      showToast(`Removed "${dish.name}" (Host override)`, '🗑️');
-      return;
-    }
-
-    // In-app modal for deletion
-    setDeleteCandidate(dish);
+    removeCustomDish(id);
+    showToast(`Removed "${dish?.name || 'dish'}"`, '🗑️');
   };
 
   const handleShare = () => {
@@ -381,112 +363,6 @@ export default function App() {
         onResetDefaults={resetToDefaults}
         onShowToast={showToast}
       />
-
-      {/* In-App Release / Unclaim Confirmation Dialog (No window.confirm!) */}
-      {unclaimCandidate && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2C1E16]/60 backdrop-blur-xs transition-opacity no-print"
-          onClick={() => setUnclaimCandidate(null)}
-        >
-          <div
-            className="bg-white rounded-3xl max-w-sm w-full p-6 border border-[#E8DEC8] shadow-warmLg space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2.5 text-[#C25927]">
-              <div className="w-10 h-10 rounded-full bg-[#FAF0E6] flex items-center justify-center text-lg">
-                🔄
-              </div>
-              <div>
-                <span className="text-[11px] uppercase font-bold tracking-wider text-[#C25927] block">
-                  Change of Plans?
-                </span>
-                <h3 className="font-serif text-lg font-bold text-[#2C1E16]">
-                  Release This Dish?
-                </h3>
-              </div>
-            </div>
-
-            <p className="text-xs text-[#705F55] leading-relaxed">
-              Are you sure you want to release <strong>"{unclaimCandidate.name}"</strong> (currently claimed by <strong>{unclaimCandidate.claimedBy}</strong>)? It will become immediately open for others to claim.
-            </p>
-
-            <div className="flex gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => setUnclaimCandidate(null)}
-                className="w-1/2 py-2.5 rounded-xl border border-[#D9CEBF] text-[#705F55] text-xs font-semibold hover:bg-[#F3EDE2] transition cursor-pointer"
-              >
-                Keep Claimed
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const dish = unclaimCandidate;
-                  setUnclaimCandidate(null);
-                  unclaimDish(dish.id);
-                  showToast(`"${dish.name}" is now open for claiming!`, '🔄');
-                }}
-                className="w-1/2 py-2.5 rounded-xl bg-[#8C3A27] hover:bg-[#732E1E] text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
-              >
-                Yes, Release 🔄
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* In-App Custom Dish Deletion Confirmation Dialog */}
-      {deleteCandidate && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2C1E16]/60 backdrop-blur-xs transition-opacity no-print"
-          onClick={() => setDeleteCandidate(null)}
-        >
-          <div
-            className="bg-white rounded-3xl max-w-sm w-full p-6 border border-[#E8DEC8] shadow-warmLg space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2.5 text-red-600">
-              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-lg">
-                🗑️
-              </div>
-              <div>
-                <span className="text-[11px] uppercase font-bold tracking-wider text-red-700 block">
-                  Confirm Removal
-                </span>
-                <h3 className="font-serif text-lg font-bold text-[#2C1E16]">
-                  Remove Custom Dish?
-                </h3>
-              </div>
-            </div>
-
-            <p className="text-xs text-[#705F55] leading-relaxed">
-              Remove <strong>"{deleteCandidate.name}"</strong> from the feast ledger completely?
-            </p>
-
-            <div className="flex gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => setDeleteCandidate(null)}
-                className="w-1/2 py-2.5 rounded-xl border border-[#D9CEBF] text-[#705F55] text-xs font-semibold hover:bg-[#F3EDE2] transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const dish = deleteCandidate;
-                  setDeleteCandidate(null);
-                  removeCustomDish(dish.id);
-                  showToast(`Removed "${dish.name}"`, '🗑️');
-                }}
-                className="w-1/2 py-2.5 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
-              >
-                Delete Dish
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Print View for Fridge */}
       <PrintView dishes={dishes} />
