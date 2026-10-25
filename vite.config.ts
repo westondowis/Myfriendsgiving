@@ -10,9 +10,11 @@ export default defineConfig({
   base: '/Myfriendsgiving/',
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, '.'),
-    },
+    alias: [
+      { find: /^@\/src\/(.*)/, replacement: path.resolve(__dirname, 'src/$1') },
+      { find: /^@\/(.*)/, replacement: path.resolve(__dirname, 'src/$1') },
+      { find: '@', replacement: path.resolve(__dirname, 'src') },
+    ],
   },
   server: {
     hmr: process.env.DISABLE_HMR !== 'true',
